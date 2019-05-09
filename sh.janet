@@ -7,7 +7,7 @@
 (var shell-tmodes nil)
 
 # All current jobs under control of the shell.
-(var @[] jobs)
+(var jobs @[])
 
 # Mapping of pid to process tables.
 (var pid2proc @{})
@@ -55,9 +55,9 @@
 
 (defn update-proc-status
   [p status]
-  (set p :status status)
-  (set p :stopped (WIFSTOPPED status))
-  (set p :exit-code
+  (put p :status status)
+  (put p :stopped (WIFSTOPPED status))
+  (put p :exit-code
     (if (WIFEXITED status)
       (WEXITSTATUS status)
       (if (WIFSIGNALED status)
@@ -73,7 +73,19 @@
   (reduce (fn [s p] (and s (p :stopped))) true (j :procs)))
 
 (defn job-exit-code
+  "Return the exit code of the first failed process"
+  "in the job. Returns nil if any job has not exited."
   [j]
   (reduce
-    (fn [code p] (if (zero? code) (p :exit-code) code))
-    0 (j :procs)))
+    (fn [code p]
+      (and
+        code
+        (p :exit-code)
+        (if (zero? code)
+          (p :exit-code)
+          code))
+    0 j)))
+
+(defn job-complete?
+  [j]
+  (number? (job-exit-code j)))
