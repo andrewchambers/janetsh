@@ -9,6 +9,7 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <wordexp.h>
+#include <linenoise.h>
 
 #define panic_errno(NAME, e) \
   do { \
@@ -228,6 +229,55 @@ static Janet tcsetattr_(int32_t argc, Janet *argv) {
     return janet_wrap_nil();
 }
 
+static Janet linenoise_(int32_t argc, Janet *argv) {
+  janet_fixarity(argc, 1);
+  char *ln = linenoise(janet_getcstring(argv, 0));
+  if (!ln)
+    return janet_wrap_nil();
+  Janet jln = janet_cstringv(ln);
+  linenoiseFree(ln);
+  return jln;
+}
+
+static Janet linenoiseSetMultiLine_(int32_t argc, Janet *argv) {
+  janet_fixarity(argc, 1);
+  linenoiseSetMultiLine(janet_getboolean(argv, 0));
+  return janet_wrap_nil();
+}
+
+
+static Janet linenoiseClearScreen_(int32_t argc, Janet *argv) {
+  janet_fixarity(argc, 0);
+  linenoiseClearScreen();
+  return janet_wrap_nil();
+}
+
+static Janet linenoiseHistoryAdd_(int32_t argc, Janet *argv) {
+  janet_fixarity(argc, 1);
+  return janet_wrap_integer(linenoiseHistoryAdd(janet_getcstring(argv, 0)));
+}
+
+static Janet linenoiseHistorySetMaxLen_(int32_t argc, Janet *argv) {
+  janet_fixarity(argc, 1);
+  if (!linenoiseHistorySetMaxLen(janet_getinteger(argv, 0)))
+    janet_panic("linenoiseHistorySetMaxLen: error");
+  return janet_wrap_nil();
+}
+
+static Janet linenoiseHistorySave_(int32_t argc, Janet *argv) {
+  janet_fixarity(argc, 1);
+  if (linenoiseHistorySave(janet_getcstring(argv, 0)) != 0)
+    janet_panic("linenoiseHistorySave: error");
+  return janet_wrap_nil();
+}
+
+static Janet linenoiseHistoryLoad_(int32_t argc, Janet *argv) {
+  janet_fixarity(argc, 1);
+  if (linenoiseHistoryLoad(janet_getcstring(argv, 0)) != 0)
+    janet_panic("linenoiseHistoryLoad: error");
+  return janet_wrap_nil();
+}
+
 #define STATUS_FUNC_INT(X) static Janet X##_(int32_t argc, Janet *argv) { \
   janet_fixarity(argc, 1); \
   return janet_wrap_integer(X(janet_getinteger(argv, 0))); \
@@ -245,6 +295,7 @@ STATUS_FUNC_BOOL(WIFSIGNALED);
 STATUS_FUNC_BOOL(WIFSTOPPED);
 
 static const JanetReg cfuns[] = {
+    // Unistd
     {"fork", jfork_, NULL},
     {"exec", exec, NULL},
     {"isatty", isatty_, NULL},
@@ -265,14 +316,27 @@ static const JanetReg cfuns[] = {
     {"WIFSIGNALED", WIFSIGNALED_, NULL},
     {"WEXITSTATUS", WEXITSTATUS_, NULL},
     {"WIFSTOPPED", WIFSTOPPED_, NULL},
+    
+    // Termios    
     {"tcgetattr", tcgetattr_, NULL},
     {"tcsetattr", tcsetattr_, NULL},
+    
+    // linenoise - Slightly renamed to make it look nicer.
+    {"ln/get-line", linenoise_, NULL},
+    {"ln/clear-screen", linenoiseClearScreen_, NULL},
+    {"ln/set-multiline", linenoiseSetMultiLine_, NULL},
+    {"ln/history-set-max-len", linenoiseHistorySetMaxLen_, NULL},
+    {"ln/history-add", linenoiseHistoryAdd_, NULL},
+    {"ln/history-load", linenoiseHistoryLoad_, NULL},
+    {"ln/history-save", linenoiseHistorySave_, NULL},
+
+    // libc
     {"wordexp", wordexp_, NULL},
     {NULL, NULL, NULL}
 };
 
 JANET_MODULE_ENTRY(JanetTable *env) {
-    janet_cfuns(env, "unix", cfuns);
+    janet_cfuns(env, "shlib", cfuns);
 
     // This code assumes pid_t will fit in a janet number.
     assert(sizeof(int32_t) == sizeof(pid_t));
@@ -289,6 +353,7 @@ JANET_MODULE_ENTRY(JanetTable *env) {
     DEF_CONSTANT_INT(SIGTTIN);
     DEF_CONSTANT_INT(SIGTTOU);
     DEF_CONSTANT_INT(SIGCHLD);
+    DEF_CONSTANT_INT(SIGTERM);
 
     DEF_CONSTANT_INT(O_RDONLY);
     DEF_CONSTANT_INT(O_WRONLY);

@@ -1,36 +1,41 @@
 #! /usr/bin/env janet
 
+(import shlib)
 (import sh)
 
 (sh/init)
 
 (do
-  #(def $ sh/$)
-  #(def $? sh/$?)
-  #(def $$ sh/$$)
+  (def hist-file (first (shlib/wordexp "~/.janetsh.hist")))
+  (shlib/ln/history-set-max-len 512)
+  (shlib/ln/set-multiline true)
+  (try 
+    (shlib/ln/history-load hist-file)
+    ([e] nil))
 
   (defn getprompt [p]
-    (def offset (parser/where p))
     (string (os/cwd) " " (parser/state p) "$ "))
-
-  (defn getstdin [prompt buf]
-    (file/write stdout prompt)
-    (file/flush stdout)
-    (file/read stdin :line buf))
+  
+  (defn getln [prompt buf]
+    (when-let [ln (shlib/ln/get-line prompt)]
+      (when (not= (length ln) 0)
+        (shlib/ln/history-add ln))
+      (buffer/push-string buf ln "\n")
+      buf))
 
   (defn want-implicit [buf p]
     (and (> (length buf) 1) (empty? (parser/state p)) (not= (buf 0) 40)))
 
   (defn getchunk [buf p]
     (sh/update-all-jobs-status)
-    (when (getstdin (getprompt p) buf)
+    (when (getln (getprompt p) buf)
       (when (want-implicit buf p)
-        (buffer/popn buf 1)
         (let [line (string buf)]
           (buffer/clear buf)
-          (buffer/format buf "(sh/$ %s)\n" line)))
+          (buffer/format buf "(sh/$? %s)\n" line)))
       buf))
   
   (setdyn :pretty-format "%.40p")
-  (repl getchunk nil))
-  # (sh/terminate-all-jobs)
+  (repl getchunk nil)
+  (sh/terminate-all-jobs)
+  (shlib/ln/history-save hist-file))

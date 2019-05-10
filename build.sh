@@ -5,7 +5,8 @@ set -eux
 CC=${CC:-clang}
 
 buildmodule () {
-  $CC -fPIC -Wall -Werror -shared -I ~/src/janet/src/include $1/*.c -o $1.so	
+  $CC -fPIC -Wall -Werror -shared $(pkg-config --cflags janet) $(pkg-config --cflags --libs linenoise) $1/*.c -o $1.so	
 }
 
-buildmodule unixy
+buildmodule shlib
+

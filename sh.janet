@@ -1,20 +1,20 @@
-(import unixy :prefix "")
+(import shlib :prefix "")
 
 # This file is the main implementation of janetsh.
 # The best reference I have found so far is here [1].
 
 
-(def is-interactive (isatty STDIN_FILENO))
+(var is-interactive nil)
 
 # Stores the last saved tmodes of the shell.
 # Set and restored when running jobs in the foreground.
 (var shell-tmodes nil)
 
 # All current jobs under control of the shell.
-(var jobs @[])
+(var jobs nil)
 
 # Mapping of pid to process tables.
-(var pid2proc @{})
+(var pid2proc nil)
 
 
 (defn- set-interactive-and-job-signal-handlers
@@ -28,8 +28,11 @@
 # See here [2] for an explanation of what this function accomplishes
 # and why. Init should be called before job control functions are used.
 (defn init
-  []
-  (when is-interactive
+  [&opt is-subshell]
+  (set is-interactive (isatty STDIN_FILENO))
+  (set jobs @[])
+  (set pid2proc @{})
+  (when (and is-interactive (not is-subshell))
   	(var shell-pgid (getpgrp))
     (while (not= (tcgetpgrp STDIN_FILENO) shell-pgid)
       (set shell-pgid (getpgrp))
@@ -123,6 +126,17 @@
           (when (not= ECHILD (dyn :errno))
             (error err)))))))
 
+(defn terminate-job
+  [j]
+   (when (not (job-complete? j))
+      (each p (j :procs)
+        (kill (p :pid) SIGTERM))
+      (wait-for-job j)))
+
+(defn terminate-all-jobs
+  []
+  (each j jobs (terminate-job j)))
+
 (defn prune-complete-jobs
   []
   (update-all-jobs-status)
@@ -169,10 +183,18 @@
           (dup2 srcfd sinkfd))
       (if (function? (first args))
         (do
+          # This is a subshell inside a job.
+          # Clear jobs, they aren't the subshell's jobs.
+          # The subshells should be able to run jobs
+          # of it's own if it wants to.
+          (init true)
+
           ((first args) ;(tuple/slice args 1))
+          # Terminate any jobs the subshell started.
+          (terminate-all-jobs)
           (os/exit 0))
         (do
-          (exec ;(flatten args))
+          (exec ;(map string (flatten args)))
           (error "exec failed!"))))
   ([e]
     (file/write stderr (string e))
@@ -239,6 +261,7 @@
             @[STDIN_FILENO  "<"  infd]
             @[STDOUT_FILENO ">" outfd]
             @[STDERR_FILENO ">"  errfd]] (proc :redirs)))
+        
         (exec-proc (proc :args) redirs)
         (error "unreachable"))
 
@@ -321,7 +344,8 @@
   [f]
   (when-let [bi (first f)]
     (cond
-      (= 'cd bi) (tuple 'os/cd ;(map form-to-arg (tuple/slice f 1)))
+      (= 'cd bi) (tuple 'os/cd ;(flatten (map form-to-arg (tuple/slice f 1))))
+      (= 'clear bi) '(sh/clear)
       nil)))
   
 (defn parse-job
@@ -364,6 +388,14 @@
     (error "empty shell job"))
   [job fg])
 
+(defn expand
+  [s]
+  (wordexp s))
+
+(defn clear
+  []
+  (ln/clear-screen))
+
 (defmacro $
   [& forms]
   (if-let [builtin (parse-builtin forms)]
@@ -394,7 +426,6 @@
     builtin
     (let [[j fg] (parse-job ;forms)]
       ~(sh/job-output ,j))))
-
 
 # References
 # [1] https://www.gnu.org/software/libc/manual/html_node/Implementing-a-Shell.html

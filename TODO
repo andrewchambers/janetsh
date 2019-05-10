@@ -1,6 +1,6 @@
 - Consider making unixy fd's gc'd so we can close them on panics. 
-- Globbing.
 - Stop all running jobs somehow on sigterm, maybe sigint. Maybe children?
 - Monkey patch os/exit to stop jobs?
 - Repl.
 - History.
+- Ensure subshells work properly in regards to spawning jobs.
