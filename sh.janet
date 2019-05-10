@@ -190,6 +190,7 @@
           (init true)
 
           ((first args) ;(tuple/slice args 1))
+          (file/flush stdout)
           # Terminate any jobs the subshell started.
           (terminate-all-jobs)
           (os/exit 0))
@@ -402,8 +403,7 @@
     (while true
       (if-let [ln (file/read stdin :line)]
         (f ln)
-        (break)))
-    (file/flush stdout)))
+        (break)))))
 
 (defn out-lines
   [f]
