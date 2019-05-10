@@ -329,9 +329,17 @@
 (defn- form-to-arg
   [f]
   (match (type f)
-    :tuple f
-    :keyword (wordexp (string f))
-    :symbol (wordexp (string f))
+    :tuple
+      (if (and # Somewhat ugly special case. Check for the quasiquote so we can use ~/ nicely.
+            (= (first f) 'quasiquote)
+            (= (length f) 2)
+            (= (type (f 1)) :symbol))
+        (wordexp (string "~" (f 1)))
+        f)
+    :keyword
+      (wordexp (string f))
+    :symbol
+      (wordexp (string f))
     (string f)))
 
 (defn- arg-symbol?
