@@ -1,0 +1,36 @@
+#! /usr/bin/env janet
+
+(import sh)
+
+(sh/init)
+
+(do
+  #(def $ sh/$)
+  #(def $? sh/$?)
+  #(def $$ sh/$$)
+
+  (defn getprompt [p]
+    (def offset (parser/where p))
+    (string (os/cwd) " " (parser/state p) "$ "))
+
+  (defn getstdin [prompt buf]
+    (file/write stdout prompt)
+    (file/flush stdout)
+    (file/read stdin :line buf))
+
+  (defn want-implicit [buf p]
+    (and (> (length buf) 1) (empty? (parser/state p)) (not= (buf 0) 40)))
+
+  (defn getchunk [buf p]
+    (sh/update-all-jobs-status)
+    (when (getstdin (getprompt p) buf)
+      (when (want-implicit buf p)
+        (buffer/popn buf 1)
+        (let [line (string buf)]
+          (buffer/clear buf)
+          (buffer/format buf "(sh/$ %s)\n" line)))
+      buf))
+  
+  (setdyn :pretty-format "%.40p")
+  (repl getchunk nil))
+  # (sh/terminate-all-jobs)

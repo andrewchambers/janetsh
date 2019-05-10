@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <fcntl.h>
+#include <wordexp.h>
 
 #define panic_errno(NAME, e) \
   do { \
@@ -164,6 +165,40 @@ static Janet waitpid_(int32_t argc, Janet *argv) {
   return janet_wrap_tuple(janet_tuple_end(t));
 }
 
+static Janet wordexp_(int32_t argc, Janet *argv) {
+  wordexp_t p;
+
+  janet_fixarity(argc, 1);
+
+  switch (wordexp(janet_getcstring(argv, 0), &p, WRDE_NOCMD | WRDE_UNDEF)) {
+  case 0:
+    break;
+  case WRDE_BADCHAR:
+    janet_panic("wordexp: Illegal occurrence of newline or one of |, &, ;, <, >, (, ),{, }.");
+  case WRDE_BADVAL:
+    janet_panic("wordexp: An undefined shell variable was referenced.");
+  case WRDE_CMDSUB:
+    janet_panic("wordexp: Command substitution not supported.");
+  case WRDE_NOSPACE:
+    janet_panic("wordexp: Out of memory.");
+  case WRDE_SYNTAX:
+    janet_panic("wordexp: Syntax error.");
+  default:
+    janet_panic("wordexp: Unknown error.");
+  }
+
+  char **w = p.we_wordv;
+  
+  JanetArray *a = janet_array(p.we_wordc);
+
+  for (int i = 0; i < p.we_wordc; i++)
+     janet_array_push(a, janet_cstringv(w[i]));
+  
+  wordfree(&p);
+
+  return janet_wrap_array(a);
+}
+
 static struct JanetAbstractType Termios_jt = {
     "unixy.termios",
     NULL,
@@ -232,6 +267,7 @@ static const JanetReg cfuns[] = {
     {"WIFSTOPPED", WIFSTOPPED_, NULL},
     {"tcgetattr", tcgetattr_, NULL},
     {"tcsetattr", tcsetattr_, NULL},
+    {"wordexp", wordexp_, NULL},
     {NULL, NULL, NULL}
 };
 

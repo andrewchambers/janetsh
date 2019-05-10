@@ -110,7 +110,7 @@
     (let [[pid status] (waitpid (- (j :pgid)) WUNTRACED)]
       (update-pid-status pid status))))
 
-(defn update-all-jobs-status 
+(defn update-all-jobs-status
   []
   (each j jobs
     (when (not (job-complete? j))
@@ -304,8 +304,10 @@
 
 (defn- form-to-arg
   [f]
-  (if (= (type f) :tuple)
-    f
+  (match (type f)
+    :tuple f
+    :keyword (wordexp (string f))
+    :symbol (wordexp (string f))
     (string f)))
 
 (defn- arg-symbol?
@@ -319,7 +321,7 @@
   [f]
   (when-let [bi (first f)]
     (cond
-      (= 'cd bi) (tuple bi ;(map form-to-arg (tuple/slice f 1)))
+      (= 'cd bi) (tuple 'os/cd ;(map form-to-arg (tuple/slice f 1)))
       nil)))
   
 (defn parse-job
@@ -362,7 +364,6 @@
     (error "empty shell job"))
   [job fg])
 
-
 (defmacro $
   [& forms]
   (if-let [builtin (parse-builtin forms)]
@@ -376,10 +377,23 @@
             (when (not= 0 rc)
               (error rc)))))))))
 
+(defmacro $?
+  [& forms]
+  (if-let [builtin (parse-builtin forms)]
+    builtin
+    (let [[j fg] (parse-job ;forms)]
+    ~(do
+      (let [j ,j]
+        (sh/launch-job j ,fg)
+        (when ,fg
+          (sh/job-exit-code j)))))))
+
 (defmacro $$
   [& forms]
-   (let [[j fg] (parse-job ;forms)]
-     ~(sh/job-output ,j)))
+  (if-let [builtin (parse-builtin forms)]
+    builtin
+    (let [[j fg] (parse-job ;forms)]
+      ~(sh/job-output ,j))))
 
 
 # References
