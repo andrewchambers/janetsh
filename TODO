@@ -1,3 +1,4 @@
 - Consider making unixy fd's gc'd so we can close them on panics. 
 - Consider which FD's can to be CLOEXEC.
 - Globbing.
+- When the shell exits, stop all running jobs.
