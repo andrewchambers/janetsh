@@ -245,7 +245,6 @@ static Janet linenoiseSetMultiLine_(int32_t argc, Janet *argv) {
   return janet_wrap_nil();
 }
 
-
 static Janet linenoiseClearScreen_(int32_t argc, Janet *argv) {
   janet_fixarity(argc, 0);
   linenoiseClearScreen();

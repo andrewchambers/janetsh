@@ -396,6 +396,20 @@
   []
   (ln/clear-screen))
 
+(defn do-lines
+  [f]
+  (fn []
+    (while true
+      (if-let [ln (file/read stdin :line)]
+        (f ln)
+        (break)))
+    (file/flush stdout)))
+
+(defn out-lines
+  [f]
+  (do-lines 
+    (fn [ln] (file/write stdout (f ln)))))
+
 (defmacro $
   [& forms]
   (if-let [builtin (parse-builtin forms)]
