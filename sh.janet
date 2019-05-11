@@ -16,14 +16,35 @@
 # Mapping of pid to process tables.
 (var pid2proc nil)
 
+# Extremely unsafe table. Don't touch this unless
+# you know what you are doing.
+#
+# It holds the pid cleanup table for signals
+# and must only ever be updated after signals are disabled.
+#
+# It is even a janet implementation detail that READING
+# a table doesn't modify it's structure, as such it is
+# better to not even read this table without cleanup
+# signals disabled...
+(var unsafe-child-array nil)
 
-(defn- set-interactive-and-job-signal-handlers
-  [handler]
-  (signal SIGINT  handler)
-  (signal SIGQUIT handler)
-  (signal SIGTSTP handler)
-  (signal SIGTTIN handler)
-  (signal SIGTTOU handler))
+# Reentrancy counter for shell signals...
+(var disable-cleanup-signals-count 0)
+
+(defn- disable-cleanup-signals []
+  (when (= 1 (++ disable-cleanup-signals-count))
+    (mask-cleanup-signals SIG_BLOCK)))
+
+(defn- enable-cleanup-signals []
+  (when (= 0 (-- disable-cleanup-signals-count))
+    (mask-cleanup-signals SIG_UNBLOCK))
+  (when (< disable-cleanup-signals-count 0)
+    (error "BUG: unbalanced signal enable/disable pair.")))
+
+(defn- force-enable-cleanup-signals []
+  (set disable-cleanup-signals-count 0)
+  (mask-cleanup-signals SIG_UNBLOCK))
+
 
 # See here [2] for an explanation of what this function accomplishes
 # and why. Init should be called before job control functions are used.
@@ -32,16 +53,25 @@
   (set is-interactive (isatty STDIN_FILENO))
   (set jobs @[])
   (set pid2proc @{})
-  (when (and is-interactive (not is-subshell))
-  	(var shell-pgid (getpgrp))
-    (while (not= (tcgetpgrp STDIN_FILENO) shell-pgid)
-      (set shell-pgid (getpgrp))
-      (kill (- shell-pgid SIGTTIN)))
-    (set-interactive-and-job-signal-handlers SIG_IGN)
-    (let [shell-pid (getpid)]
-      (setpgid shell-pid shell-pid)
-      (tcsetpgrp STDIN_FILENO shell-pgid))
-    (set shell-tmodes (tcgetattr STDIN_FILENO)))
+  
+  (disable-cleanup-signals)
+  (set unsafe-child-array @[])
+  (register-unsafe-child-array unsafe-child-array)
+  (enable-cleanup-signals)
+
+  (if (and is-interactive (not is-subshell))
+    (do
+      (var shell-pgid (getpgrp))
+      (while (not= (tcgetpgrp STDIN_FILENO) shell-pgid)
+        (set shell-pgid (getpgrp))
+        (kill (- shell-pgid SIGTTIN)))
+      (set-interactive-signal-handlers)
+      (let [shell-pid (getpid)]
+        (setpgid shell-pid shell-pid)
+        (tcsetpgrp STDIN_FILENO shell-pgid))
+      (set shell-tmodes (tcgetattr STDIN_FILENO)))
+    (do
+      (set-noninteractive-signal-handlers)))
   nil)
 
 (defn- new-job []
@@ -77,7 +107,6 @@
   [pid status]
     (when-let [p (pid2proc pid)]
       (update-proc-status p status)))
-
 
 (defn job-stopped?
   [j]
@@ -142,9 +171,16 @@
   (update-all-jobs-status)
   (set jobs (filter (complement job-complete?) jobs))
   (set pid2proc @{})
+  (var new-unsafe-child-array @[])
+  
+  (disable-cleanup-signals)
   (each j jobs
     (each p (j :procs)
-      (put pid2proc (p :pid) p)))
+      (put pid2proc (p :pid) p)
+      (array/push new-unsafe-child-array (p :pid))))
+  (set unsafe-child-array new-unsafe-child-array)
+  (register-unsafe-child-array unsafe-child-array)
+  (enable-cleanup-signals)
   jobs)
 
 (defn make-job-fg
@@ -204,6 +240,7 @@
 
 (defn launch-job
   [j in-foreground]
+  (disable-cleanup-signals)
   
   # Flush output files before we fork.
   (file/flush stdout)
@@ -244,27 +281,32 @@
       (var pid (fork))
       
       (when (zero? pid)
-        (set pid (getpid))
-        
-        # TODO XXX.
-        # We want to discard any buffered input after we fork.
-        # There is currently no way to do this. (fpurge stdin)
-        
-        (post-fork pid)
+        (try 
+          (do            
+            (set pid (getpid))
+            
+            # TODO XXX.
+            # We want to discard any buffered input after we fork.
+            # There is currently no way to do this. (fpurge stdin)
+            (post-fork pid)
 
-        (when is-interactive
-          (when in-foreground
-            (tcsetpgrp STDIN_FILENO (j :pgid))))
+            (when is-interactive
+              (when in-foreground
+                (tcsetpgrp STDIN_FILENO (j :pgid))))
 
-        (set-interactive-and-job-signal-handlers SIG_DFL)
+            # The child doesn't want our signal handlers
+            # we need to reset them.
+            (reset-signal-handlers)
+            (force-enable-cleanup-signals)
 
-        (def redirs (array/concat @[
-            @[STDIN_FILENO  "<"  infd]
-            @[STDOUT_FILENO ">" outfd]
-            @[STDERR_FILENO ">"  errfd]] (proc :redirs)))
-        
-        (exec-proc (proc :args) redirs)
-        (error "unreachable"))
+            (def redirs (array/concat @[
+                @[STDIN_FILENO  "<"  infd]
+                @[STDOUT_FILENO ">" outfd]
+                @[STDERR_FILENO ">"  errfd]] (proc :redirs)))
+            
+            (exec-proc (proc :args) redirs)
+            (error "unreachable"))
+        ([e] (os/exit 1))))
 
       (post-fork pid)
       (when (not= infd STDIN_FILENO)
@@ -279,7 +321,9 @@
       (make-job-fg j)
       (wait-for-job j))
     (make-job-bg j))
-  (prune-complete-jobs))
+  (prune-complete-jobs)
+  (enable-cleanup-signals)
+  j)
 
 (defn job-output [j]
   (let [[fd-a fd-b] (pipe)

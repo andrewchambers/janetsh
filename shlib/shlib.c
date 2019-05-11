@@ -75,12 +75,6 @@ static Janet tcsetpgrp_(int32_t argc, Janet *argv) {
   return janet_wrap_nil();
 }
 
-static Janet signal_(int32_t argc, Janet *argv) {
-  janet_fixarity(argc, 2);
-  void *h = signal((pid_t)janet_getnumber(argv, 0), (__sighandler_t)janet_getpointer(argv, 1));
-  return janet_wrap_pointer(h);
-}
-
 static Janet kill_(int32_t argc, Janet *argv) {
   janet_fixarity(argc, 2);
   pid_t pid = kill((pid_t)janet_getnumber(argv, 0), (int)janet_getnumber(argv, 1));
@@ -165,6 +159,22 @@ static Janet waitpid_(int32_t argc, Janet *argv) {
   t[1] = janet_wrap_number(status);
   return janet_wrap_tuple(janet_tuple_end(t));
 }
+
+#define STATUS_FUNC_INT(X) static Janet X##_(int32_t argc, Janet *argv) { \
+  janet_fixarity(argc, 1); \
+  return janet_wrap_integer(X(janet_getinteger(argv, 0))); \
+}
+
+STATUS_FUNC_INT(WEXITSTATUS);
+
+#define STATUS_FUNC_BOOL(X) static Janet X##_(int32_t argc, Janet *argv) { \
+  janet_fixarity(argc, 1); \
+  return janet_wrap_boolean(X(janet_getinteger(argv, 0))); \
+}
+
+STATUS_FUNC_BOOL(WIFEXITED);
+STATUS_FUNC_BOOL(WIFSIGNALED);
+STATUS_FUNC_BOOL(WIFSTOPPED);
 
 static Janet wordexp_(int32_t argc, Janet *argv) {
   wordexp_t p;
@@ -277,31 +287,144 @@ static Janet linenoiseHistoryLoad_(int32_t argc, Janet *argv) {
   return janet_wrap_nil();
 }
 
-#define STATUS_FUNC_INT(X) static Janet X##_(int32_t argc, Janet *argv) { \
-  janet_fixarity(argc, 1); \
-  return janet_wrap_integer(X(janet_getinteger(argv, 0))); \
+static Janet reset_signal_handlers(int32_t argc, Janet *argv) {
+  janet_fixarity(argc, 0);
+  struct sigaction act;
+  memset(&act, 0, sizeof(act));
+  act.sa_handler = SIG_DFL;
+  if (  sigaction(SIGINT,  &act, NULL) == -1
+     || sigaction(SIGQUIT, &act, NULL) == -1
+     || sigaction(SIGTSTP, &act, NULL) == -1
+     || sigaction(SIGTTIN, &act, NULL) == -1
+     || sigaction(SIGTTOU, &act, NULL) == -1
+     || sigaction(SIGTERM, &act, NULL) == -1)
+    janet_panic("signal_action: error");
+  return janet_wrap_nil();
 }
 
-STATUS_FUNC_INT(WEXITSTATUS);
-
-#define STATUS_FUNC_BOOL(X) static Janet X##_(int32_t argc, Janet *argv) { \
-  janet_fixarity(argc, 1); \
-  return janet_wrap_boolean(X(janet_getinteger(argv, 0))); \
+static Janet mask_cleanup_signals(int32_t argc, Janet *argv) {
+  janet_fixarity(argc, 1);
+  int action = janet_getinteger(argv, 0);
+  sigset_t block_mask;
+  sigemptyset(&block_mask);
+  sigaddset(&block_mask, SIGINT);
+  sigaddset(&block_mask, SIGTERM);
+  if (sigprocmask(action, &block_mask, NULL) == -1) 
+    janet_panic("sigprocmask: error");
+  return janet_wrap_nil();
 }
 
-STATUS_FUNC_BOOL(WIFEXITED);
-STATUS_FUNC_BOOL(WIFSIGNALED);
-STATUS_FUNC_BOOL(WIFSTOPPED);
+// WARNING Highly unsafe janet table.
+// This depends on the fact the janet GC is non moving.
+// We store a reference to this unsafe table, and (hopefully) guarantee
+// it is not modified when signals are enabled.
+//
+// We should then should be able to *read* this table from
+// the signal handler to get a list of children to cleanup.
+static JanetArray *unsafe_child_array  = 0; 
+
+static Janet register_unsafe_child_array(int32_t argc, Janet *argv) {
+  janet_fixarity(argc, 1);
+  // We could root the table, but something would be going horribly
+  // wrong before this is needed.
+  unsafe_child_array = janet_getarray(argv, 0);
+  return janet_wrap_nil();
+}
+
+static void
+sig_handler (int signum)
+{
+  switch (signum) {
+  case SIGINT:
+    // fallthrough
+  case SIGTERM:
+    // Go do the work.
+    break;
+  default:
+    return;
+  }
+
+  // Cleanup children on sig term.
+  for (int i = 0; i < unsafe_child_array->count; i++) {
+    int status;
+    
+    pid_t child = janet_unwrap_number(unsafe_child_array->data[i]);
+    // Check if the child really is ours and if it is still alive.
+    // This info may be stale so we double check here before sending
+    // a TERM signal.
+    if (waitpid(child, &status, WNOHANG) == 0) {
+      // This process was indeed our child.
+      // we can proceed to try and kill it.
+      if (kill(child, SIGTERM) == 0) {
+        // We have signalled the job.
+        // if the kill, or wait fails
+        // there is not much we can do.
+        waitpid(child, &status, 0);
+      }
+    }
+  }
+ 
+  exit(1);
+}
+
+static Janet set_interactive_signal_handlers(int32_t argc, Janet *argv) {
+  janet_fixarity(argc, 0);
+
+  struct sigaction act;
+  memset(&act, 0, sizeof(act));
+  act.sa_handler = SIG_IGN;
+
+  if ( sigaction(SIGINT,  &act, NULL) == -1
+    || sigaction(SIGQUIT, &act, NULL) == -1
+    || sigaction(SIGTSTP, &act, NULL) == -1
+    || sigaction(SIGTTIN, &act, NULL) == -1
+    || sigaction(SIGTTOU, &act, NULL) == -1)
+    janet_panic("signal_action: error");
+  
+  sigset_t block_mask;
+  sigemptyset(&block_mask);
+  memset(&act, 0, sizeof(act));
+  act.sa_handler = sig_handler;
+  act.sa_mask = block_mask;
+
+  if (sigaction(SIGTERM, &act, NULL) == -1)
+    janet_panic("signal_action: error");
+
+  return janet_wrap_nil();
+}
+
+
+static Janet set_noninteractive_signal_handlers(int32_t argc, Janet *argv) {
+  janet_fixarity(argc, 0);
+  reset_signal_handlers(argc, argv);
+
+  sigset_t block_mask;
+  sigemptyset(&block_mask);
+  sigaddset(&block_mask, SIGINT);
+  sigaddset(&block_mask, SIGTERM);
+  struct sigaction act;
+  memset(&act, 0, sizeof(act));
+  
+  act.sa_handler = sig_handler;
+  act.sa_mask = block_mask;
+
+  if (sigaction(SIGTERM, &act, NULL) == -1)
+    janet_panic("signal_action: error");
+
+  if (sigaction(SIGINT, &act, NULL) == -1)
+    janet_panic("signal_action: error");
+
+  return janet_wrap_nil();
+}
 
 static const JanetReg cfuns[] = {
-    // Unistd
+    // Unistd / Libc
     {"fork", jfork_, NULL},
     {"exec", exec, NULL},
     {"isatty", isatty_, NULL},
     {"getpgrp", getpgrp_, NULL},
     {"getpid", getpid_, NULL},
     {"setpgid", setpgid_, NULL},
-    {"signal", signal_, NULL},
     {"tcgetpgrp", tcgetpgrp_, NULL},
     {"tcsetpgrp", tcsetpgrp_, NULL},
     {"dup2", dup2_, NULL},
@@ -315,6 +438,13 @@ static const JanetReg cfuns[] = {
     {"WIFSIGNALED", WIFSIGNALED_, NULL},
     {"WEXITSTATUS", WEXITSTATUS_, NULL},
     {"WIFSTOPPED", WIFSTOPPED_, NULL},
+
+    // signal handlers
+    {"register-unsafe-child-array", register_unsafe_child_array, NULL},
+    {"mask-cleanup-signals", mask_cleanup_signals, NULL},
+    {"reset-signal-handlers", reset_signal_handlers, NULL},
+    {"set-interactive-signal-handlers", set_interactive_signal_handlers, NULL},
+    {"set-noninteractive-signal-handlers", set_noninteractive_signal_handlers, NULL},
     
     // Termios    
     {"tcgetattr", tcgetattr_, NULL},
@@ -355,6 +485,9 @@ JANET_MODULE_ENTRY(JanetTable *env) {
     DEF_CONSTANT_INT(SIGTERM);
     DEF_CONSTANT_INT(SIGPIPE);
 
+    DEF_CONSTANT_INT(SIG_BLOCK);
+    DEF_CONSTANT_INT(SIG_UNBLOCK);
+
     DEF_CONSTANT_INT(O_RDONLY);
     DEF_CONSTANT_INT(O_WRONLY);
     DEF_CONSTANT_INT(O_RDWR);
@@ -374,9 +507,4 @@ JANET_MODULE_ENTRY(JanetTable *env) {
     DEF_CONSTANT_INT(ECHILD);
 
     #undef DEF_CONSTANT_INT
-
-    #define DEF_CONSTANT_PTR(X) janet_def(env, #X, janet_wrap_pointer(X), NULL)
-    DEF_CONSTANT_PTR(SIG_IGN);
-    DEF_CONSTANT_PTR(SIG_DFL);
-    #undef DEF_CONSTANT_PTR
 }
