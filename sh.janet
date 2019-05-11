@@ -297,6 +297,9 @@
                   (when in-foreground
                     (tcsetpgrp STDIN_FILENO (j :pgid))))
 
+                (when pipes
+                  (close (pipes 0)))
+
                 # The child doesn't want our signal handlers
                 # we need to reset them.
                 (reset-signal-handlers)
