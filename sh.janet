@@ -73,6 +73,10 @@
       (set-noninteractive-signal-handlers)))
   nil)
 
+(defn deinit
+  []
+  (reset-signal-handlers))
+
 (defn- new-job []
   @{
     :procs @[]   # A list of processes in the pipeline.
@@ -85,22 +89,24 @@
     :args @[]      # A list of arguments used to start the proc. 
     :redirs @[]    # A list of 3 tuples. [fd|path ">"|"<"|">>" fd|path] 
     :pid nil       # PID of process after it has been started.
-    :status nil    # Last status returned from waitpid.
-    :exit-code nil # Exit code of the process when it has exited.
+    :termsig nil   # Signal used to terminate job.
+    :exit-code nil # Exit code of the process when it has exited, or 127 on signal exit.
     :stopped false # If the process has been stopped (Ctrl-Z).
+    :stopsig nil   # Signal that stopped the process.
    })
 
 (defn update-proc-status
   [p status]
-  (put p :status status)
   (when (WIFSTOPPED status)
-    (put p :stopped true))
+    (put p :stopped true)
+    (put p :stopsig (WSTOPSIG status)))
   (when (WIFCONTINUED status)
     (put p :stopped false))
   (when (WIFEXITED status)
     (put p :exit-code (WEXITSTATUS status)))
   (when (WIFSIGNALED status)
-    (put p :exit-code 127)))
+    (put p :exit-code 127)
+    (put p :termsig (WTERMSIG status))))
 
 (defn update-pid-status
   "Given a pid and status, update the corresponding process
@@ -137,6 +143,12 @@
     (put p :stopped false))
   (kill (- (j :pgid)) SIGCONT))
 
+(defn- mark-missing-job-as-complete
+  [j]
+  (each p (j :procs)
+    (when (not (p :exit-code))
+      (put p :exit-code 127))))
+
 (defn wait-for-job
   [j]
   (try
@@ -144,8 +156,10 @@
       (let [[pid status] (waitpid (- (j :pgid)) (bor WUNTRACED WCONTINUED WSTOPPED))]
         (update-pid-status pid status)))
   ([err]
-    (when (not= ECHILD (dyn :errno))
-      (error err)))))
+    (if (= ECHILD (dyn :errno))
+      (mark-missing-job-as-complete j)
+      (error err))))
+  j)
 
 (defn update-all-jobs-status
   []
@@ -157,16 +171,21 @@
             (when (= pid 0) (break))
             (update-pid-status pid status)))
         ([err]
-          (when (not= ECHILD (dyn :errno))
-            (error err)))))))
+          (if (= ECHILD (dyn :errno))
+            (mark-missing-job-as-complete j)
+            (error err))))))
+  jobs)
 
 (defn terminate-job
   [j]
-   (when (not (job-complete? j))
-      (each p (j :procs)
-        (kill (p :pid) SIGTERM))
-      (wait-for-job j)
-      j))
+  (when (not (job-complete? j))
+    (try
+      (kill (j :pgid) SIGTERM)
+    ([e] 
+      (when (not= ESRCH (dyn :errno))
+        (error e))))
+    (wait-for-job j))
+  j)
 
 (defn job-from-pgid [pgid]
   (find (fn [j] (= (j :pgid)) pgid) jobs))

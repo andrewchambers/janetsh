@@ -167,6 +167,8 @@ static Janet waitpid_(int32_t argc, Janet *argv) {
 }
 
 STATUS_FUNC_INT(WEXITSTATUS);
+STATUS_FUNC_INT(WTERMSIG);
+STATUS_FUNC_INT(WSTOPSIG);
 
 #define STATUS_FUNC_BOOL(X) static Janet X##_(int32_t argc, Janet *argv) { \
   janet_fixarity(argc, 1); \
@@ -437,8 +439,10 @@ static const JanetReg cfuns[] = {
     {"pipe", pipe_, NULL},
     {"waitpid", waitpid_, NULL},
     {"WIFEXITED", WIFEXITED_, NULL},
-    {"WIFSIGNALED", WIFSIGNALED_, NULL},
     {"WEXITSTATUS", WEXITSTATUS_, NULL},
+    {"WIFSIGNALED", WIFSIGNALED_, NULL},
+    {"WTERMSIG", WTERMSIG_, NULL},
+    {"WSTOPSIG", WSTOPSIG_, NULL},
     {"WIFSTOPPED", WIFSTOPPED_, NULL},
     {"WIFCONTINUED", WIFCONTINUED_, NULL},
 
@@ -511,6 +515,7 @@ JANET_MODULE_ENTRY(JanetTable *env) {
     DEF_CONSTANT_INT(WSTOPPED);
 
     DEF_CONSTANT_INT(ECHILD);
+    DEF_CONSTANT_INT(ESRCH);
 
     #undef DEF_CONSTANT_INT
 }

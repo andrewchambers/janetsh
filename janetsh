@@ -55,3 +55,4 @@
 (sh/terminate-all-jobs)
 (shlib/ln/history-save hist-file)
 
+(sh/deinit)
