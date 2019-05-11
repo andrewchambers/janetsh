@@ -354,13 +354,13 @@ sig_handler (int signum)
     // a TERM signal.
     if (waitpid(child, &status, WNOHANG) == 0) {
       // This process was indeed our child.
-      // we can proceed to try and kill it.
-      if (kill(child, SIGTERM) == 0) {
-        // We have signalled the job.
-        // if the kill, or wait fails
-        // there is not much we can do.
-        waitpid(child, &status, 0);
-      }
+      // The zero return onfirms it is still alive
+      // so we can proceed to try and kill it.
+
+      // if the kill, or wait fails
+      // there is not much we can do.
+      kill(child, SIGTERM);
+      waitpid(child, &status, 0);
     }
   }
  

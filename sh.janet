@@ -160,7 +160,11 @@
    (when (not (job-complete? j))
       (each p (j :procs)
         (kill (p :pid) SIGTERM))
-      (wait-for-job j)))
+      (wait-for-job j)
+      j))
+
+(defn job-from-pgid [pgid]
+  (find (fn [j] (= (j :pgid)) pgid) jobs))
 
 (defn terminate-all-jobs
   []
