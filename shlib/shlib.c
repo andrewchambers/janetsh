@@ -292,12 +292,12 @@ static Janet reset_signal_handlers(int32_t argc, Janet *argv) {
   struct sigaction act;
   memset(&act, 0, sizeof(act));
   act.sa_handler = SIG_DFL;
-  if (  sigaction(SIGINT,  &act, NULL) == -1
-     || sigaction(SIGQUIT, &act, NULL) == -1
-     || sigaction(SIGTSTP, &act, NULL) == -1
-     || sigaction(SIGTTIN, &act, NULL) == -1
-     || sigaction(SIGTTOU, &act, NULL) == -1
-     || sigaction(SIGTERM, &act, NULL) == -1)
+  if (  (sigaction(SIGINT,  &act, NULL) == -1)
+     || (sigaction(SIGQUIT, &act, NULL) == -1)
+     || (sigaction(SIGTSTP, &act, NULL) == -1)
+     || (sigaction(SIGTTIN, &act, NULL) == -1)
+     || (sigaction(SIGTTOU, &act, NULL) == -1)
+     || (sigaction(SIGTERM, &act, NULL) == -1))
     janet_panic("signal_action: error");
   return janet_wrap_nil();
 }
@@ -374,12 +374,12 @@ static Janet set_interactive_signal_handlers(int32_t argc, Janet *argv) {
   memset(&act, 0, sizeof(act));
   act.sa_handler = SIG_IGN;
 
-  if ( sigaction(SIGINT,  &act, NULL) == -1
-    || sigaction(SIGQUIT, &act, NULL) == -1
-    || sigaction(SIGTSTP, &act, NULL) == -1
-    || sigaction(SIGTTIN, &act, NULL) == -1
-    || sigaction(SIGTTOU, &act, NULL) == -1)
-    janet_panic("signal_action: error");
+  if ( (sigaction(SIGINT,  &act, NULL) == -1)
+    || (sigaction(SIGQUIT, &act, NULL) == -1)
+    || (sigaction(SIGTSTP, &act, NULL) == -1)
+    || (sigaction(SIGTTIN, &act, NULL) == -1)
+    || (sigaction(SIGTTOU, &act, NULL) == -1))
+    janet_panic("sigaction: error");
   
   sigset_t block_mask;
   sigemptyset(&block_mask);
@@ -388,7 +388,7 @@ static Janet set_interactive_signal_handlers(int32_t argc, Janet *argv) {
   act.sa_mask = block_mask;
 
   if (sigaction(SIGTERM, &act, NULL) == -1)
-    janet_panic("signal_action: error");
+    janet_panic("sigaction: error");
 
   return janet_wrap_nil();
 }
@@ -409,10 +409,10 @@ static Janet set_noninteractive_signal_handlers(int32_t argc, Janet *argv) {
   act.sa_mask = block_mask;
 
   if (sigaction(SIGTERM, &act, NULL) == -1)
-    janet_panic("signal_action: error");
+    janet_panic("sigaction: error");
 
   if (sigaction(SIGINT, &act, NULL) == -1)
-    janet_panic("signal_action: error");
+    janet_panic("sigaction: error");
 
   return janet_wrap_nil();
 }
