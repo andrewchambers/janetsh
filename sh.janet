@@ -483,9 +483,9 @@
     (let [[j fg] (parse-job ;forms)]
     ~(do
       (let [j ,j]
-        (sh/launch-job j ,fg)
+        (,launch-job j ,fg)
         (when ,fg
-          (let [rc (sh/job-exit-code j)]
+          (let [rc (,job-exit-code j)]
             (when (not= 0 rc)
               (error rc)))))))))
 
@@ -496,16 +496,16 @@
     (let [[j fg] (parse-job ;forms)]
     ~(do
       (let [j ,j]
-        (sh/launch-job j ,fg)
+        (,launch-job j ,fg)
         (when ,fg
-          (sh/job-exit-code j)))))))
+          (,job-exit-code j)))))))
 
 (defmacro $$
   [& forms]
   (if-let [builtin (parse-builtin forms)]
     builtin
     (let [[j fg] (parse-job ;forms)]
-      ~(sh/job-output ,j))))
+      ~(,job-output ,j))))
 
 # References
 # [1] https://www.gnu.org/software/libc/manual/html_node/Implementing-a-Shell.html
