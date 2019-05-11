@@ -45,7 +45,6 @@
   (set disable-cleanup-signals-count 0)
   (mask-cleanup-signals SIG_UNBLOCK))
 
-
 # See here [2] for an explanation of what this function accomplishes
 # and why. Init should be called before job control functions are used.
 (defn init
@@ -209,125 +208,127 @@
 
 (defn- exec-proc
   [args redirs]
-  (try
-    (do 
-      (each r redirs
-        (var sinkfd (get r 0))
-        (var srcfd  (get r 2))
-        (when (string? srcfd)
-          (set srcfd (match (r 1)
-            ">"  (open srcfd (bor O_WRONLY O_CREAT O_TRUNC)  (bor S_IWUSR S_IRUSR S_IRGRP))
-            ">>" (open srcfd (bor O_WRONLY O_CREAT O_APPEND) (bor S_IWUSR S_IRUSR S_IRGRP))
-            "<"  (open srcfd (bor O_RDONLY) 0)
-            (error "unhandled redirect"))))
-          (dup2 srcfd sinkfd))
-      (if (function? (first args))
-        (do
-          # This is a subshell inside a job.
-          # Clear jobs, they aren't the subshell's jobs.
-          # The subshells should be able to run jobs
-          # of it's own if it wants to.
-          (init true)
+  (each r redirs
+    (var sinkfd (get r 0))
+    (var srcfd  (get r 2))
+    (when (string? srcfd)
+      (set srcfd (match (r 1)
+        ">"  (open srcfd (bor O_WRONLY O_CREAT O_TRUNC)  (bor S_IWUSR S_IRUSR S_IRGRP))
+        ">>" (open srcfd (bor O_WRONLY O_CREAT O_APPEND) (bor S_IWUSR S_IRUSR S_IRGRP))
+        "<"  (open srcfd (bor O_RDONLY) 0)
+        (error "unhandled redirect"))))
+      (dup2 srcfd sinkfd))
+  (if (function? (first args))
+    (do
+      # This is a subshell inside a job.
+      # Clear jobs, they aren't the subshell's jobs.
+      # The subshells should be able to run jobs
+      # of it's own if it wants to.
+      (init true)
 
-          ((first args) ;(tuple/slice args 1))
-          (file/flush stdout)
-          # Terminate any jobs the subshell started.
-          (terminate-all-jobs)
-          (os/exit 0))
-        (do
-          (exec ;(map string (flatten args)))
-          (error "exec failed!"))))
-  ([e]
-    (file/write stderr (string e))
-    (file/flush stderr)
-    (os/exit 1))))
+      ((first args) ;(tuple/slice args 1))
+      (file/flush stdout)
+      # Terminate any jobs the subshell started.
+      (terminate-all-jobs)
+      (os/exit 0))
+    (do
+      (exec ;(map string (flatten args)))
+      (error "exec failed!"))))
 
 (defn launch-job
   [j in-foreground]
-  (disable-cleanup-signals)
-  
-  # Flush output files before we fork.
-  (file/flush stdout)
-  (file/flush stderr)
-
-  (array/push jobs j)
-  
-  (def procs (j :procs))
-  (var pipes nil)
-  (var infd  STDIN_FILENO)
-  (var outfd STDOUT_FILENO)
-  (var errfd STDERR_FILENO)
-
-  (for i 0 (length procs)
-    (let 
-      [proc (get procs i)
-       has-next (not= i (dec (length procs)))]
+  (try
+    (do
+      (disable-cleanup-signals)
       
-      (if has-next
-        (do
-          (set pipes (pipe))
-          (set outfd (pipes 1)))
-        (do
-          (set pipes nil)
-          (set outfd STDOUT_FILENO)))
-
-      # As mentioned in [3] we must set the right pgid
-      # in both the parent and the child to avoid a race
-      # condition when we start waiting on the process group.
-      (defn 
-        post-fork [pid] 
-        (when (not (j :pgid))
-          (put j :pgid pid))
-        (setpgid pid (j :pgid))
-        (put proc :pid pid)
-        (put pid2proc pid proc))
-
-      (var pid (fork))
+      # Flush output files before we fork.
+      (file/flush stdout)
+      (file/flush stderr)
       
-      (when (zero? pid)
-        (try 
-          (do            
-            (set pid (getpid))
-            
-            # TODO XXX.
-            # We want to discard any buffered input after we fork.
-            # There is currently no way to do this. (fpurge stdin)
-            (post-fork pid)
+      (def procs (j :procs))
+      (var pipes nil)
+      (var infd  STDIN_FILENO)
+      (var outfd STDOUT_FILENO)
+      (var errfd STDERR_FILENO)
 
-            (when is-interactive
-              (when in-foreground
-                (tcsetpgrp STDIN_FILENO (j :pgid))))
+      (for i 0 (length procs)
+        (let 
+          [proc (get procs i)
+           has-next (not= i (dec (length procs)))]
+          
+          (if has-next
+            (do
+              (set pipes (pipe))
+              (set outfd (pipes 1)))
+            (do
+              (set pipes nil)
+              (set outfd STDOUT_FILENO)))
 
-            # The child doesn't want our signal handlers
-            # we need to reset them.
-            (reset-signal-handlers)
-            (force-enable-cleanup-signals)
+          # As mentioned in [3] we must set the right pgid
+          # in both the parent and the child to avoid a race
+          # condition when we start waiting on the process group.
+          (defn 
+            post-fork [pid]
+            (when (not (j :pgid))
+              (put j :pgid pid))
+            (setpgid pid (j :pgid))
+            (put proc :pid pid)
+            (put pid2proc pid proc))
 
-            (def redirs (array/concat @[
-                @[STDIN_FILENO  "<"  infd]
-                @[STDOUT_FILENO ">" outfd]
-                @[STDERR_FILENO ">"  errfd]] (proc :redirs)))
-            
-            (exec-proc (proc :args) redirs)
-            (error "unreachable"))
-        ([e] (os/exit 1))))
+          (var pid (fork))
+          
+          (when (zero? pid)
+            (try  # This try/catch prevents a child from ever starting job control again after an error.
+              (do
+                (set pid (getpid))
+                
+                # TODO XXX.
+                # We want to discard any buffered input after we fork.
+                # There is currently no way to do this. (fpurge stdin)
+                (post-fork pid)
 
-      (post-fork pid)
-      (when (not= infd STDIN_FILENO)
-        (close infd))
-      (when (not= outfd STDOUT_FILENO)
-        (close outfd))
-      (when pipes
-        (set infd (pipes 0)))))
+                (when is-interactive
+                  (when in-foreground
+                    (tcsetpgrp STDIN_FILENO (j :pgid))))
 
-  (if in-foreground
-    (if is-interactive
-      (make-job-fg j)
-      (wait-for-job j))
-    (make-job-bg j))
-  (prune-complete-jobs)
-  (enable-cleanup-signals)
-  j)
+                # The child doesn't want our signal handlers
+                # we need to reset them.
+                (reset-signal-handlers)
+                (force-enable-cleanup-signals)
+
+                (def redirs (array/concat @[
+                    @[STDIN_FILENO  "<"  infd]
+                    @[STDOUT_FILENO ">" outfd]
+                    @[STDERR_FILENO ">"  errfd]] (proc :redirs)))
+                
+                (exec-proc (proc :args) redirs)
+                (error "unreachable"))
+            ([e] (os/exit 1))))
+
+          (post-fork pid)
+          (when (not= infd STDIN_FILENO)
+            (close infd))
+          (when (not= outfd STDOUT_FILENO)
+            (close outfd))
+          (when pipes
+            (set infd (pipes 0)))))
+
+      (if in-foreground
+        (if is-interactive
+          (make-job-fg j)
+          (wait-for-job j))
+        (make-job-bg j))
+      (prune-complete-jobs)
+      (enable-cleanup-signals)
+      (array/push jobs j)
+      j)
+    ([e] # This error is unrecoverable to ensure things like running out of FD's
+         # don't leave the terminal in an undefined state.
+      (file/write stderr "unrecoverable internal error:") 
+      (file/write stderr (string e))
+      (file/flush stderr)
+      (terminate-all-jobs)
+      (os/exit 1))))
 
 (defn job-output [j]
   (let [[fd-a fd-b] (pipe)
