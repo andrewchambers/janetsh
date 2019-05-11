@@ -1,3 +1,4 @@
+#define _DEFAULT_SOURCE
 #include <janet.h>
 #include <unistd.h>
 #include <assert.h>
@@ -5,8 +6,8 @@
 #include <errno.h>
 #include <signal.h>
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <wordexp.h>
 #include <linenoise.h>
@@ -149,7 +150,7 @@ static Janet close_(int32_t argc, Janet *argv) {
 
 static Janet waitpid_(int32_t argc, Janet *argv) {
   janet_fixarity(argc, 2);
-  int status;
+  int status = 0;
   pid_t pid = waitpid(janet_getinteger(argv, 0), &status, janet_getinteger(argv, 1));
   if (pid == -1)
     panic_errno("waitpid", errno);
@@ -173,6 +174,7 @@ STATUS_FUNC_INT(WEXITSTATUS);
 }
 
 STATUS_FUNC_BOOL(WIFEXITED);
+STATUS_FUNC_BOOL(WIFCONTINUED);
 STATUS_FUNC_BOOL(WIFSIGNALED);
 STATUS_FUNC_BOOL(WIFSTOPPED);
 
@@ -438,6 +440,7 @@ static const JanetReg cfuns[] = {
     {"WIFSIGNALED", WIFSIGNALED_, NULL},
     {"WEXITSTATUS", WEXITSTATUS_, NULL},
     {"WIFSTOPPED", WIFSTOPPED_, NULL},
+    {"WIFCONTINUED", WIFCONTINUED_, NULL},
 
     // signal handlers
     {"register-unsafe-child-array", register_unsafe_child_array, NULL},
@@ -503,6 +506,9 @@ JANET_MODULE_ENTRY(JanetTable *env) {
 
     DEF_CONSTANT_INT(WUNTRACED);
     DEF_CONSTANT_INT(WNOHANG);
+    DEF_CONSTANT_INT(WCONTINUED);
+    DEF_CONSTANT_INT(WEXITED);
+    DEF_CONSTANT_INT(WSTOPPED);
 
     DEF_CONSTANT_INT(ECHILD);
 

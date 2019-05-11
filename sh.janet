@@ -93,19 +93,21 @@
 (defn update-proc-status
   [p status]
   (put p :status status)
-  (put p :stopped (WIFSTOPPED status))
-  (put p :exit-code
-    (if (WIFEXITED status)
-      (WEXITSTATUS status)
-      (if (WIFSIGNALED status)
-        127))))
+  (when (WIFSTOPPED status)
+    (put p :stopped true))
+  (when (WIFCONTINUED status)
+    (put p :stopped false))
+  (when (WIFEXITED status)
+    (put p :exit-code (WEXITSTATUS status)))
+  (when (WIFSIGNALED status)
+    (put p :exit-code 127)))
 
 (defn update-pid-status
   "Given a pid and status, update the corresponding process
    in the global job/process tables with the new status."
   [pid status]
-    (when-let [p (pid2proc pid)]
-      (update-proc-status p status)))
+  (when-let [p (pid2proc pid)]
+    (update-proc-status p status)))
 
 (defn job-stopped?
   [j]
@@ -137,9 +139,13 @@
 
 (defn wait-for-job
   [j]
-  (while (not (or (job-stopped? j) (job-complete? j)))
-    (let [[pid status] (waitpid (- (j :pgid)) WUNTRACED)]
-      (update-pid-status pid status))))
+  (try
+    (while (not (or (job-stopped? j) (job-complete? j)))
+      (let [[pid status] (waitpid (- (j :pgid)) (bor WUNTRACED WCONTINUED WSTOPPED))]
+        (update-pid-status pid status)))
+  ([err]
+    (when (not= ECHILD (dyn :errno))
+      (error err)))))
 
 (defn update-all-jobs-status
   []
@@ -147,7 +153,7 @@
     (when (not (job-complete? j))
       (try
         (while true
-          (let [[pid status] (waitpid (- (j :pgid)) (bor WUNTRACED WNOHANG))]
+          (let [[pid status] (waitpid (- (j :pgid)) (bor WUNTRACED WNOHANG WCONTINUED WSTOPPED))]
             (when (= pid 0) (break))
             (update-pid-status pid status)))
         ([err]
@@ -318,9 +324,9 @@
           (make-job-fg j)
           (wait-for-job j))
         (make-job-bg j))
+      (array/push jobs j)
       (prune-complete-jobs)
       (enable-cleanup-signals)
-      (array/push jobs j)
       j)
     ([e] # This error is unrecoverable to ensure things like running out of FD's
          # don't leave the terminal in an undefined state.
