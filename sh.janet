@@ -503,10 +503,11 @@
     ~(do
       (let [j ,j]
         (,launch-job j ,fg)
-        (when ,fg
+        (if ,fg
           (let [rc (,job-exit-code j)]
             (when (not= 0 rc)
-              (error rc)))))))))
+              (error rc)))
+          j))))))
 
 (defmacro $?
   [& forms]
@@ -516,14 +517,17 @@
     ~(do
       (let [j ,j]
         (,launch-job j ,fg)
-        (when ,fg
-          (,job-exit-code j)))))))
+        (if ,fg
+          (,job-exit-code j)
+          j))))))
 
 (defmacro $$
   [& forms]
   (if-let [builtin (parse-builtin forms)]
     builtin
     (let [[j fg] (parse-job ;forms)]
+      (when (not fg)
+        (error "$$ does not support background jobs"))
       ~(,job-output ,j))))
 
 # References
