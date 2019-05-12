@@ -243,8 +243,19 @@ static Janet tcsetattr_(int32_t argc, Janet *argv) {
     return janet_wrap_nil();
 }
 
+
+static JanetFunction *completion_janet_function = NULL;
+static void linenoise_completion(const char *buf, linenoiseCompletions *lc) {
+  // TODO pcall the completion function
+}
+
 static Janet linenoise_(int32_t argc, Janet *argv) {
-  janet_fixarity(argc, 1);
+  janet_fixarity(argc, 2);
+  // Setting this every time doesn't hurt much.
+  // and may help if it is linked as a shared library.
+  linenoiseSetCompletionCallback(linenoise_completion);
+  // This won't be GC'd while argv is alive.
+  completion_janet_function = janet_getfunction(argv, 1);
   char *ln = linenoise(janet_getcstring(argv, 0));
   if (!ln)
     return janet_wrap_nil();

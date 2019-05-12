@@ -17,8 +17,12 @@
 (defn getprompt [p]
   (string (os/cwd) " " (parser/state p) "$ "))
 
+(defn completion
+  [line lc]
+    nil)
+
 (defn getln [prompt buf]
-  (when-let [ln (shlib/ln/get-line prompt)]
+  (when-let [ln (shlib/ln/get-line prompt completion)]
     (when (not= (length ln) 0)
       (shlib/ln/history-add ln))
     (buffer/push-string buf ln "\n")
