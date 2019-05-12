@@ -486,9 +486,10 @@
   [f]
   (fn []
     (while true
-      (if-let [ln (file/read stdin :line)]
-        (f ln)
-        (break)))))
+      (let [ln (file/read stdin :line)]
+        (if (not (empty? ln))
+          (f ln)
+          (break))))))
 
 (defn out-lines
   [f]
