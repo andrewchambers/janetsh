@@ -31,6 +31,10 @@ but know that as you become more familiar with janet, your shell will gain the p
 
 ![demo](./demos/subshelldemo.cast.gif)
 
+## Demo script
+
+[The script that generated these demos](./demos/demos.janet)
+
 # Reference Documentation
 
 Hopefully in the future this sparse reference set will become more polished, but for now
