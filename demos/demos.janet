@@ -24,11 +24,6 @@
   [& keys]
   (sh/$ tmux -S (identity *tmux-sock*) send-keys (identity keys)))
 
-(defn send-string
-  [s]
-  (each part (partition 10 (map (fn [b] (char-to-key-name (string/from-bytes b))) s))
-   (send-keys ;part)))
-
 (defn type-string
   [s]
   (each c s
