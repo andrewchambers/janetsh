@@ -1,4 +1,6 @@
-# Janetsh
+# Janetsh 
+
+[![Gitter](https://badges.gitter.im/janetsh/community.svg)](https://gitter.im/janetsh/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 A new system shell that uses the [Janet](https://janet-lang.org/) programming language
 for high level scripting while also supporting the things we love about sh.
