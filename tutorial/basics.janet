@@ -26,7 +26,7 @@
   [name]
   (sh/$ echo hello (identity name)))
 
-# This will call our function which will invode the external command:
+# This will call our function which will invoke the external command:
 # "echo hello"
 #
 # This example is contrived, but the easy passage of janet values
@@ -34,6 +34,8 @@
 (hello "Andrew")
 
 # The sh/$ macro by throws an error if the command fails.
+# The janet programming language has try/catch, so we can
+# handle problems in a similar way to some other programming languages.
 (try
   (sh/$ false)
 ([e] (print "this error was on purpose.")))
