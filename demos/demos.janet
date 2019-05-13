@@ -28,10 +28,12 @@
   [s]
   (each c s
     (def char-str (string/from-bytes c))
+    (when (= char-str "\n")
+      (os/sleep 2))
     (send-keys (char-to-key-name char-str))
     (os/sleep 0.2)
-    (when  (= char-str  "\n")
-      (os/sleep 4))))
+    (when (= char-str "\n")
+      (os/sleep 3))))
 
 (defn see-it-in-action-demo
   []
