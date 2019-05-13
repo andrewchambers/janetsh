@@ -69,12 +69,12 @@
   # A shame this needs to be docker, but this is so hard to install, even on nixos.
   (sh/$ sudo docker run --rm -v $PWD:/data asciinema/asciicast2gif -s 2 -t solarized-dark (identity cast) (string cast ".gif")))
 
-(record shell-demo "./demos/shelldemo.cast")
-(record functional-demo "./demos/functionaldemo.cast")
-(record capture-demo "./demos/capturedemo.cast")
-(record subshell-demo "./demos/subshelldemo.cast")
+#(record shell-demo "./demos/shelldemo.cast")
+#(record functional-demo "./demos/functionaldemo.cast")
+#(record capture-demo "./demos/capturedemo.cast")
+#(record subshell-demo "./demos/subshelldemo.cast")
 
-(cast2gif "./demos/shelldemo.cast")
-(cast2gif "./demos/functionaldemo.cast")
-(cast2gif "./demos/capturedemo.cast")
-(cast2gif "./demos/subshelldemo.cast")
+#(cast2gif "./demos/shelldemo.cast")
+#(cast2gif "./demos/functionaldemo.cast")
+#(cast2gif "./demos/capturedemo.cast")
+#(cast2gif "./demos/subshelldemo.cast")

@@ -19,19 +19,57 @@ but know that as you become more familiar with janet, your shell will gain the p
 
 ## Basic shell usage
 
-![demo](./demos/shelldemo.cast.gif)
+As you would expect:
+```
+$ ls -la | head -n 3
+total 100
+drwxr-xr-x 1 ac users   220 May 13 20:16 .
+drwxr-xr-x 1 ac users   760 May 12 21:08 ..
+0
+$ echo foo > /dev/null
+0
+$ sleep 5 &
+@{:pgid 82190 :procs @[@{:args @[@["sleep"] "5"]
+      :pid 82190
+      :stopped false
+      :redirs @[]}]}
+$ rm ./demos/*.gif
+0
+```
 
 ## Functional programming
 
-![demo](./demos/functionaldemo.cast.gif)
+```
+$ (map string/ascii-upper ["functional" "programming"])
+@["FUNCTIONAL" "PROGRAMMING"]
+$ (defn lines [s] (string/split "\n" s))
+<function lines>
+$ (lines ($$ ls | head -n 3))
+@["build.sh" "demos" "janetsh" ""]
+$ echo (reduce + 0 [1 2 3])
+6
+0
+```
 
 ## Command capture
 
-![demo](./demos/capturedemo.cast.gif)
+```
+$ (string/ascii-upper ($$ echo command string capture))
+"COMMAND STRING CAPTURE\n"
+$ (if (= 0 ($? touch /tmp/test.txt)) (print "success"))
+success
+nil
+```
 
 ## Subshells
 
-![demo](./demos/subshelldemo.cast.gif)
+```
+$ ls | head -n 3 | (out-lines string/ascii-upper)
+BUILD.SH
+DEMOS
+JANETSH
+0
+```
 
 ## Demo script
 
