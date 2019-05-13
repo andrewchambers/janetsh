@@ -65,8 +65,8 @@
 # We can pretty print this job to see what it contains.
 (pp sleep-job)
 
-# With janet tables, it is simple to extract values.
-# Simply call them with a key.
+# With janet tables it is simple to extract values,
+# simply call them with the key we are extracting.
 (print "our job has process group " (sleep-job :pgid))
 
 # We can terminate the job if we don't want it anymore.
@@ -80,5 +80,5 @@
 (print "out sleep job exited with exit code: " (sh/job-exit-code sleep-job))
 
 # That's it for now.
-# Remember - janetsh is normal janet, so look to https://janet-lang.org/
+# Remember - janetsh is normal janet, so look to https://janet-lang.org
 # for more information to become a master.
