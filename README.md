@@ -76,9 +76,9 @@ Better instructions coming soon...
 # Janetsh Internals
 
 Internally janetsh is implemented as a low level C library for the janet programming
-language with a small launcher that does some necessary setup/teardown.
+language, a janet library and a small launcher that does some necessary setup/teardown.
 
-At the medium level janetsh is a set of janet functions and macros that perform shell
+The janet main implementation is a set of janet functions and macros that perform shell
 job control, control user input and manage your command pipelines.
 
 At the highest level the user is presented with an
