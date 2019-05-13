@@ -84,10 +84,6 @@ JANETSH
 0
 ```
 
-## Demo script
-
-[The script that generated these demos](./demos/demos.janet)
-
 # Reference Documentation
 
 Hopefully in the future this sparse reference set will become more polished, but for now
