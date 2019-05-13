@@ -34,9 +34,9 @@
   (each c s
     (def char-str (string/from-bytes c))
     (send-keys (char-to-key-name char-str))
-    (os/sleep 0.14)
+    (os/sleep 0.2)
     (when  (= char-str  "\n")
-      (os/sleep 1))))
+      (os/sleep 2))))
 
 (defn shell-demo
   []
