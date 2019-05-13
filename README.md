@@ -26,13 +26,16 @@ total 100
 drwxr-xr-x 1 ac users   220 May 13 20:16 .
 drwxr-xr-x 1 ac users   760 May 12 21:08 ..
 0
+
 $ echo foo > /dev/null
 0
+
 $ sleep 5 &
 @{:pgid 82190 :procs @[@{:args @[@["sleep"] "5"]
       :pid 82190
       :stopped false
       :redirs @[]}]}
+
 $ rm ./demos/*.gif
 0
 ```
@@ -42,10 +45,13 @@ $ rm ./demos/*.gif
 ```
 $ (map string/ascii-upper ["functional" "programming"])
 @["FUNCTIONAL" "PROGRAMMING"]
+
 $ (defn lines [s] (string/split "\n" s))
 <function lines>
+
 $ (lines ($$ ls | head -n 3))
 @["build.sh" "demos" "janetsh" ""]
+
 $ echo (reduce + 0 [1 2 3])
 6
 0
@@ -56,6 +62,7 @@ $ echo (reduce + 0 [1 2 3])
 ```
 $ (string/ascii-upper ($$ echo command string capture))
 "COMMAND STRING CAPTURE\n"
+
 $ (if (= 0 ($? touch /tmp/test.txt)) (print "success"))
 success
 nil
