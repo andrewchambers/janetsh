@@ -3,8 +3,6 @@
 (import shlib)
 (import sh)
 
-(sh/init)
-
 (def hist-file (first (shlib/wordexp "~/.janetsh.hist")))
 (def rc-file (first (shlib/wordexp "~/.janetsh.rc")))
 
@@ -50,12 +48,17 @@
 (def do-lines sh/do-lines)
 (def out-lines sh/out-lines)
 
-# load user rc script.
+# Load user rc script.
 # The user can overwrite the prompt with whatever they want.
 (when (os/stat rc-file)
   (eval-string (slurp rc-file)))
 
-(repl getchunk nil (fiber/getenv (fiber/current)))
+# This should be improved.
+(cond
+  (= (length process/args) 2) (repl getchunk nil (fiber/getenv (fiber/current)))
+  (= (length process/args) 3) (import* (get process/args 2)) # Can we import the convenience macros into this import?.
+  (error "expected 0 or 1 arguments"))
+
 (sh/terminate-all-jobs)
 (shlib/ln/history-save hist-file)
 

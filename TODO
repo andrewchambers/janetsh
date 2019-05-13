@@ -1,4 +1,0 @@
-- Consider making unixy fd's gc'd so we can close them on panics we don't anticipate. 
-- Stop all running jobs somehow on sigterm, maybe sigint. Maybe children?
-- Monkey patch os/exit to stop jobs?
-- Ensure subshells work properly in regards to spawning jobs.

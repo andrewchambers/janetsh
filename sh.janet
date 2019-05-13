@@ -3,6 +3,7 @@
 # This file is the main implementation of janetsh.
 # The best reference I have found so far is here [1].
 
+(var initialized false)
 
 (var is-interactive nil)
 
@@ -45,10 +46,11 @@
   (set disable-cleanup-signals-count 0)
   (mask-cleanup-signals SIG_UNBLOCK))
 
-# See here [2] for an explanation of what this function accomplishes
-# and why. Init should be called before job control functions are used.
 (defn init
   [&opt is-subshell]
+  (when initialized
+    (break))
+
   (set is-interactive (isatty STDIN_FILENO))
   (set jobs @[])
   (set pid2proc @{})
@@ -58,6 +60,9 @@
   (register-unsafe-child-array unsafe-child-array)
   (enable-cleanup-signals)
 
+
+  # See here [2] for an explanation of what this block accomplishes
+  # and why. Init should be called before job control functions are used.
   (if (and is-interactive (not is-subshell))
     (do
       (var shell-pgid (getpgrp))
@@ -65,17 +70,23 @@
         (set shell-pgid (getpgrp))
         (kill (- shell-pgid SIGTTIN)))
       (set-interactive-signal-handlers)
-      (let [shell-pid (getpid)]
-        (setpgid shell-pid shell-pid)
-        (tcsetpgrp STDIN_FILENO shell-pgid))
+      # XXX The original reference does this, but in some cases it fails.
+      # Do we need this?
+      # (setpgid (getpid) (getpid))
+      (tcsetpgrp STDIN_FILENO shell-pgid)
       (set shell-tmodes (tcgetattr STDIN_FILENO)))
     (do
       (set-noninteractive-signal-handlers)))
+  (set initialized true)
   nil)
 
 (defn deinit
   []
-  (reset-signal-handlers))
+  (when (not initialized)
+    (break))
+  (reset-signal-handlers)
+  (set initialized false)
+  (force-enable-cleanup-signals))
 
 (defn- new-job []
   @{
@@ -535,3 +546,5 @@
 # [1] https://www.gnu.org/software/libc/manual/html_node/Implementing-a-Shell.html
 # [2] https://www.gnu.org/software/libc/manual/html_node/Initializing-the-Shell.html#Initializing-the-Shell
 # [3] https://www.gnu.org/software/libc/manual/html_node/Launching-Jobs.html#Launching-Jobs
+
+(init)

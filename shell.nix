@@ -8,5 +8,7 @@ in
       pkg-config
       janet
       linenoise
+      asciinema
+      tmux
     ];
   }
