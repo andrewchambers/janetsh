@@ -17,7 +17,7 @@ but know that as you become more familiar with janet, your shell will gain the p
 
 # See it in action
 
-![demo](./demos/seeitinaction.gif)
+![demo](./demos/seeitinaction.cast.gif)
 
 [demo source code](./demos/demos.janet)
 
