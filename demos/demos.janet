@@ -31,33 +31,24 @@
     (send-keys (char-to-key-name char-str))
     (os/sleep 0.2)
     (when  (= char-str  "\n")
-      (os/sleep 2))))
+      (os/sleep 4))))
 
-(defn shell-demo
+(defn see-it-in-action-demo
   []
-  (type-string "ls -la | head -n 3\n")
-  (type-string "echo foo > /dev/null\n")
-  (type-string "sleep 5 &\n"))
-
-(defn functional-demo
-  []
-  (type-string "(map string/ascii-upper [\"functional\" \"programming\"])\n")
-  (type-string "(defn lines [s] (string/split \"\\n\" s))\n")
-  (type-string "(lines ($$ ls | head -n 3))\n")
-  (type-string "echo (reduce + 0 [1 2 3])\n"))
-
-(defn capture-demo
-  []
-  (type-string "(string/ascii-upper ($$ echo command string capture))\n")
-  (type-string "(if (= 0 ($? touch /tmp/test.txt)) (print \"success\"))\n"))
-
-(defn subshell-demo
-  []
-  (type-string "ls | head -n 3 | (out-lines string/ascii-upper)\n"))
+  (type-string "echo Welcome to $PWD.\n")
+  (type-string "(var all-files (string/split \"\\n\" ($$ find ./)))\n")
+  (type-string "echo We just made an array of all our files.\n")
+  (type-string "(type all-files)\n")
+  (type-string "echo We have (- (length all-files) 1) files.\n")
+  (type-string "(var janet-files \n")
+  (type-string "  (filter (fn [f] (string/has-suffix? \".janet\" f)) all-files))\n")
+  (type-string "echo We have (length janet-files) janet files.\n")
+  (type-string "echo This is the first file: (first janet-files)\n")
+  (type-string "echo We can do MUCH more... but this is a bad place.\n")
+  (type-string "echo Thank you for watching!\n"))
 
 (defn record
   [f out-path] 
-  (sh/$ tmux -S (identity *tmux-sock*) resize-pane -x 80 -y 40)
   (type-string "asciinema rec -q -c ./janetsh --overwrite /tmp/demo.cast\n")
   (f)
   (send-keys "C-d")
@@ -69,12 +60,5 @@
   # A shame this needs to be docker, but this is so hard to install, even on nixos.
   (sh/$ sudo docker run --rm -v $PWD:/data asciinema/asciicast2gif -s 2 -t solarized-dark (identity cast) (string cast ".gif")))
 
-#(record shell-demo "./demos/shelldemo.cast")
-#(record functional-demo "./demos/functionaldemo.cast")
-#(record capture-demo "./demos/capturedemo.cast")
-#(record subshell-demo "./demos/subshelldemo.cast")
-
-#(cast2gif "./demos/shelldemo.cast")
-#(cast2gif "./demos/functionaldemo.cast")
-#(cast2gif "./demos/capturedemo.cast")
-#(cast2gif "./demos/subshelldemo.cast")
+(record see-it-in-action-demo "./demos/seeitinaction.cast")
+(cast2gif "./demos/seeitinaction.cast")

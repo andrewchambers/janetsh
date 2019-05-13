@@ -15,6 +15,12 @@ but know that as you become more familiar with janet, your shell will gain the p
 - Coroutines and exceptions.
 - Much much more.
 
+# See it in action
+
+![demo](./demos/seeitinaction.gif)
+
+[demo source code](./demos/demos.janet)
+
 # Examples
 
 ## Basic shell usage
