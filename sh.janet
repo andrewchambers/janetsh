@@ -542,9 +542,10 @@
         (error "$$ does not support background jobs"))
       ~(,job-output ,j))))
 
+
+(init)
+
 # References
 # [1] https://www.gnu.org/software/libc/manual/html_node/Implementing-a-Shell.html
 # [2] https://www.gnu.org/software/libc/manual/html_node/Initializing-the-Shell.html#Initializing-the-Shell
 # [3] https://www.gnu.org/software/libc/manual/html_node/Launching-Jobs.html#Launching-Jobs
-
-(init)
