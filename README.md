@@ -86,7 +86,7 @@ interactive repl interface which implicitly invokes a janet macro
 to give janet the familiar sh syntax. You can escape this implicit
 macro by prefixing a line with '(' which reverts to regular janet mode.
 
-Technically janetsh can be used as a plain janet library, but some care is required as it the library
+Technically janetsh can be used as a plain janet library, but some care is required as the library
 deals with some global resources such as signal handlers and terminals which cannot be shared within
 a program.
 
