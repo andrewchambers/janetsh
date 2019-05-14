@@ -11,7 +11,7 @@ but know that as you become more familiar with janet, your shell will gain the p
 - A powerful standard library.
 - Functional and imperative programming.
 - Powerful lisp macros.
-- Runtime loadable extension modules written in C/C++/rust/...
+- Runtime loadable extension modules written in C/C++/rust/zig...
 - Coroutines and exceptions.
 - Much much more.
 
