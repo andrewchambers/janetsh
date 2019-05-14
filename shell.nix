@@ -7,7 +7,6 @@ in
     buildInputs = with pkgs; [
       pkg-config
       janet
-      linenoise
       asciinema
       tmux
     ];
