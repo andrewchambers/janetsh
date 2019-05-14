@@ -1,6 +1,7 @@
 # Janetsh 
 
 [![Gitter](https://badges.gitter.im/janetsh/community.svg)](https://gitter.im/janetsh/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+[Mailing list](https://lists.sr.ht/~ach/janetsh)
 
 A new system shell that uses the [Janet](https://janet-lang.org/) programming language
 for high level scripting while also supporting the things we love about sh.
@@ -14,6 +15,7 @@ but know that as you become more familiar with janet, your shell will gain the p
 - Runtime loadable extension modules written in C/C++/rust/zig...
 - Coroutines and exceptions.
 - Much much more.
+
 
 # See it in action
 
