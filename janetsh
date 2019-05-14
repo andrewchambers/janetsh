@@ -17,7 +17,8 @@
 
 (defn completion
   [line lc]
-    nil)
+  # (shlib/ln/add-completion lc "TODO")
+  nil)
 
 (defn getln [prompt buf]
   (when-let [ln (shlib/ln/get-line prompt completion)]

@@ -244,9 +244,53 @@ static Janet tcsetattr_(int32_t argc, Janet *argv) {
 }
 
 
+static struct JanetAbstractType Completions_jt = {
+    "unixy.completions",
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL
+};
+
+struct completions {
+  int stale;
+  linenoiseCompletions *lc;
+};
+
+static Janet linenoiseAddCompletion_(int32_t argc, Janet *argv) {
+  janet_fixarity(argc, 2);
+
+  struct completions *c = janet_getabstract(argv, 0, &Completions_jt);
+  const char *line = janet_getcstring(argv, 1);
+  if (!c->stale) {
+    linenoiseAddCompletion(c->lc, line);
+  }
+  return janet_wrap_nil();
+}
+
+
 static JanetFunction *completion_janet_function = NULL;
 static void linenoise_completion(const char *buf, linenoiseCompletions *lc) {
-  // TODO pcall the completion function
+  struct completions *c = janet_abstract(&Completions_jt, sizeof(struct completions));
+  c->stale = 0;
+  c->lc = lc;
+  Janet out;
+  JanetFiber *fiber = NULL;
+  const int nargs = 2;
+  Janet *args = janet_tuple_begin(nargs);
+  args[0] = janet_cstringv(buf);
+  args[1] = janet_wrap_abstract(c);
+  janet_tuple_end(args);
+
+  int lock = janet_gclock();
+  // We can't do anything with the status, if we panic we might
+  // mess up linenoise. We don't need to do anything with out either.
+  janet_pcall(completion_janet_function, nargs, args, &out, &fiber);
+  janet_gcunlock(lock);
+  c->stale = 1;
 }
 
 static Janet linenoise_(int32_t argc, Janet *argv) {
@@ -470,6 +514,7 @@ static const JanetReg cfuns[] = {
     
     // linenoise - Slightly renamed to make it look nicer.
     {"ln/get-line", linenoise_, NULL},
+    {"ln/add-completion", linenoiseAddCompletion_, NULL},
     {"ln/clear-screen", linenoiseClearScreen_, NULL},
     {"ln/set-multiline", linenoiseSetMultiLine_, NULL},
     {"ln/history-set-max-len", linenoiseHistorySetMaxLen_, NULL},
