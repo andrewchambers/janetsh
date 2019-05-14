@@ -1,6 +1,5 @@
 .POSIX:
 
-
 -include config.mk
 
 .PHONY: all
@@ -15,8 +14,19 @@ SHLIB_SRC=\
 
 SHLIB_OBJ=$(SHLIB_SRC:%.c=%.o)
 
-shlib.so: $(SHLIB_OBJ) $(SHLIB_HEADERS)
+shlib.so: $(SHLIB_OBJ)
 	$(CC) $(LDFLAGS) $(janetheadercflags) -I./shlib/ $(SHLIB_OBJ) -o $@	
+
+.PHONY: install
+install:
+	mkdir -p $(PREFIX)/bin/
+	mkdir -p $(PREFIX)/lib/janetsh
+	install ./shlib.so $(PREFIX)/lib/janetsh/
+	install ./sh.janet $(PREFIX)/lib/janetsh/
+	install ./janetsh $(PREFIX)/bin/
+	sed -i '2i (array/concat module/paths ['  $(PREFIX)/bin/janetsh
+	sed -i '3i ["$(PREFIX)/lib/janetsh/:all:.janet" :source]' $(PREFIX)/bin/janetsh
+	sed -i '4i ["$(PREFIX)/lib/janetsh/:all:.:native:" :native]])' $(PREFIX)/bin/janetsh
 
 .PHONY: clean
 clean:

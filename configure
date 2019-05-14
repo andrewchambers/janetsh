@@ -17,7 +17,7 @@ EOF
 janetheadercflags=""
 prefix="/usr"
 CC="cc"
-CFLAGS="-Wall -Werror -O2"
+CFLAGS="-Wall -O2"
 LDFLAGS="-shared"
 
 for arg ; do
@@ -33,6 +33,7 @@ done
 
 if test -z "$janetheadercflags"
 then
+  echo "--janet-header-cflags not specified, trying pkg-config"
   janetheadercflags=$(pkg-config --cflags janet)
 fi
 
