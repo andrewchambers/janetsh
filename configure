@@ -41,19 +41,16 @@ EOF
   rm "$cfile"
 }
 
-if test -z "$janetheadercflags"
+echo "Looking for janet headers..."
+if ! check_janet_headers
 then
-  echo "Checking if janet headers are installed..."
-  if ! check_janet_headers
-  then
-    echo "janet headers not found, trying pkg-config"
-    janetheadercflags=$(pkg-config --cflags janet)
-  fi
-  if ! check_janet_headers
-  then
-    fail "unable to find working janet headers."
-    exit 1
-  fi
+  echo "janet headers not found, trying pkg-config..."
+  janetheadercflags=$(pkg-config --cflags janet)
+fi
+if ! check_janet_headers
+then
+  fail "unable to find working janet headers."
+  exit 1
 fi
 
 CFLAGS="-fPIC ${CFLAGS} ${janetheadercflags}"
