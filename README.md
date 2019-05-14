@@ -89,6 +89,12 @@ JANETSH
 Hopefully in the future this sparse reference set will become more polished, but for now
 the following snippets may help advanced users play with the shell in it's current state.
 
+## RC file
+
+Janetsh loads ```~/janetsh.rc``` at startup in interactive mode, which can be used to provide
+extra functions, change the prompt function ```*get-prompt*``` and change the completion function
+*get-completion*.
+
 ## Job control
 
 A list of running jobs can be found in the variable sh/jobs, each
