@@ -15,10 +15,17 @@
 (defn getprompt [p]
   (string (os/cwd) " " (parser/state p) "$ "))
 
-(defn completion
-  [line lc]
-  # (shlib/ln/add-completion lc "TODO")
-  nil)
+# Use a var so users can redefine this.
+(var completion
+  (fn completion
+    [line lc]
+    (var expand-idx 0)
+    (def rline (string/reverse line))
+    (when-let [idx (string/find " " rline)]
+      (set expand-idx (- (length line) idx)))
+    (var to-expand (string (string/slice line expand-idx) "*"))
+    (each choice (sh/expand to-expand)
+      (shlib/ln/add-completion lc choice))))
 
 (defn getln [prompt buf]
   (when-let [ln (shlib/ln/get-line prompt completion)]

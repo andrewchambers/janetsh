@@ -274,6 +274,9 @@ static Janet linenoiseAddCompletion_(int32_t argc, Janet *argv) {
 
 static JanetFunction *completion_janet_function = NULL;
 static void linenoise_completion(const char *buf, linenoiseCompletions *lc) {
+  if (!completion_janet_function)
+    return;
+
   struct completions *c = janet_abstract(&Completions_jt, sizeof(struct completions));
   c->stale = 0;
   c->lc = lc;
@@ -285,11 +288,14 @@ static void linenoise_completion(const char *buf, linenoiseCompletions *lc) {
   args[1] = janet_wrap_abstract(c);
   janet_tuple_end(args);
 
-  int lock = janet_gclock();
+  janet_gcroot(janet_wrap_tuple(args));
+  janet_gcroot(janet_wrap_function(completion_janet_function));
   // We can't do anything with the status, if we panic we might
   // mess up linenoise. We don't need to do anything with out either.
   janet_pcall(completion_janet_function, nargs, args, &out, &fiber);
-  janet_gcunlock(lock);
+  
+  janet_gcunroot(janet_wrap_tuple(args));
+  janet_gcunroot(janet_wrap_function(completion_janet_function));
   c->stale = 1;
 }
 
