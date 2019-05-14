@@ -16,9 +16,9 @@ EOF
 
 janetheadercflags=""
 prefix="/usr"
-CC="cc"
-CFLAGS="-Wall -O2"
-LDFLAGS="-shared"
+CC="${CC:-cc}"
+CFLAGS="${CFLAGS:--Wall -O2}"
+LDFLAGS="${LDFLAGS:-}"
 
 for arg ; do
   case "$arg" in

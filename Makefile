@@ -15,7 +15,7 @@ SHLIB_SRC=\
 SHLIB_OBJ=$(SHLIB_SRC:%.c=%.o)
 
 shlib.so: $(SHLIB_OBJ)
-	$(CC) $(LDFLAGS) $(janetheadercflags) -I./shlib/ $(SHLIB_OBJ) -o $@	
+	$(CC) -shared $(LDFLAGS) $(janetheadercflags) -I./shlib/ $(SHLIB_OBJ) -o $@
 
 .PHONY: install
 install:
