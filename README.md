@@ -174,4 +174,4 @@ This project is being built with care by Andrew Chambers.
 Special thanks to Calvin Rose for creating the Janet programming language.
 
 Thanks to the authors of [closh](https://github.com/dundalek/closh), [rash](https://rash-lang.org/)
-and (xonsh)[https://github.com/xonsh/xonsh] for providing inspiration for the project.
+and [xonsh](https://github.com/xonsh/xonsh) for providing inspiration for the project.
