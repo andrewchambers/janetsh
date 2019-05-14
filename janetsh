@@ -15,7 +15,7 @@
 (defn getprompt [p]
   (string (os/cwd) " " (parser/state p) "$ "))
 
-# Use a var so users can redefine this.
+# Use a var so users can redefine this in rc file.
 (var completion
   (fn completion
     [line lc]
@@ -59,6 +59,7 @@
 # Load user rc script.
 # The user can overwrite the prompt with whatever they want.
 (when (os/stat rc-file)
+  # FIXME - slurp loses file name.
   (eval-string (slurp rc-file)))
 
 # This should be improved.
