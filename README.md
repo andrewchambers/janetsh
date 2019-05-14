@@ -124,6 +124,8 @@ $ (sh/terminate-all-jobs)
 ./configure && make
 ```
 
+Try ```./configure --help``` for a list of options.
+
 # Janetsh Internals
 
 Internally janetsh is implemented as a low level C library for the janet programming

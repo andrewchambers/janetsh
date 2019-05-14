@@ -7,6 +7,13 @@ fail() {
   exit 1
 }
 
+usage () {
+  cat <<EOF
+./configure CC=... CFLAGS=... LDFLAGS=... --prefix=... ---janet-header-cflags=...
+EOF
+  exit 1
+}
+
 janetheadercflags=""
 prefix="/usr"
 CC="cc"
@@ -19,6 +26,7 @@ for arg ; do
   --janet-header-cflags=*) janetheadercflags=${arg#*=} ;;
   CC=*) CC=${arg#*=} ;;
   CFLAGS=*) CFLAGS=${arg#*=} ;;
+  --help) usage ;;
   *) fail "unknown option '$arg'"
   esac
 done
