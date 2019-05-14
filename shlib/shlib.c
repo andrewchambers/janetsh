@@ -10,7 +10,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <wordexp.h>
-#include <linenoise.h>
+#include "shlib_linenoise.h"
 
 #define panic_errno(NAME, e) \
   do { \
@@ -23,7 +23,6 @@ static Janet jfork_(int32_t argc, Janet *argv) {
   pid_t pid = fork();
   if (pid == -1)
     panic_errno("fork", errno);
-  assert(sizeof(int32_t) == sizeof(pid_t));
   return janet_wrap_integer(pid);
 }
 
@@ -215,7 +214,7 @@ static Janet wordexp_(int32_t argc, Janet *argv) {
 }
 
 static struct JanetAbstractType Termios_jt = {
-    "unixy.termios",
+    "shlib.termios",
     NULL,
     NULL,
     NULL,
@@ -245,7 +244,7 @@ static Janet tcsetattr_(int32_t argc, Janet *argv) {
 
 
 static struct JanetAbstractType Completions_jt = {
-    "unixy.completions",
+    "shlib.completions",
     NULL,
     NULL,
     NULL,
@@ -260,20 +259,20 @@ struct completions {
   linenoiseCompletions *lc;
 };
 
-static Janet linenoiseAddCompletion_(int32_t argc, Janet *argv) {
+static Janet shlib_linenoiseAddCompletion_(int32_t argc, Janet *argv) {
   janet_fixarity(argc, 2);
 
   struct completions *c = janet_getabstract(argv, 0, &Completions_jt);
   const char *line = janet_getcstring(argv, 1);
   if (!c->stale) {
-    linenoiseAddCompletion(c->lc, line);
+    shlib_linenoiseAddCompletion(c->lc, line);
   }
   return janet_wrap_nil();
 }
 
 
 static JanetFunction *completion_janet_function = NULL;
-static void linenoise_completion(const char *buf, linenoiseCompletions *lc) {
+static void shlib_linenoise_completion(const char *buf, linenoiseCompletions *lc) {
   if (!completion_janet_function)
     return;
 
@@ -299,56 +298,56 @@ static void linenoise_completion(const char *buf, linenoiseCompletions *lc) {
   c->stale = 1;
 }
 
-static Janet linenoise_(int32_t argc, Janet *argv) {
+static Janet shlib_linenoise_(int32_t argc, Janet *argv) {
   janet_fixarity(argc, 2);
   // Setting this every time doesn't hurt much.
   // and may help if it is linked as a shared library.
-  linenoiseSetCompletionCallback(linenoise_completion);
+  shlib_linenoiseSetCompletionCallback(shlib_linenoise_completion);
   // This won't be GC'd while argv is alive.
   completion_janet_function = janet_getfunction(argv, 1);
-  char *ln = linenoise(janet_getcstring(argv, 0));
+  char *ln = shlib_linenoise(janet_getcstring(argv, 0));
   if (!ln)
     return janet_wrap_nil();
   Janet jln = janet_cstringv(ln);
-  linenoiseFree(ln);
+  shlib_linenoiseFree(ln);
   return jln;
 }
 
-static Janet linenoiseSetMultiLine_(int32_t argc, Janet *argv) {
+static Janet shlib_linenoiseSetMultiLine_(int32_t argc, Janet *argv) {
   janet_fixarity(argc, 1);
-  linenoiseSetMultiLine(janet_getboolean(argv, 0));
+  shlib_linenoiseSetMultiLine(janet_getboolean(argv, 0));
   return janet_wrap_nil();
 }
 
-static Janet linenoiseClearScreen_(int32_t argc, Janet *argv) {
+static Janet shlib_linenoiseClearScreen_(int32_t argc, Janet *argv) {
   janet_fixarity(argc, 0);
-  linenoiseClearScreen();
+  shlib_linenoiseClearScreen();
   return janet_wrap_nil();
 }
 
-static Janet linenoiseHistoryAdd_(int32_t argc, Janet *argv) {
+static Janet shlib_linenoiseHistoryAdd_(int32_t argc, Janet *argv) {
   janet_fixarity(argc, 1);
-  return janet_wrap_integer(linenoiseHistoryAdd(janet_getcstring(argv, 0)));
+  return janet_wrap_integer(shlib_linenoiseHistoryAdd(janet_getcstring(argv, 0)));
 }
 
-static Janet linenoiseHistorySetMaxLen_(int32_t argc, Janet *argv) {
+static Janet shlib_linenoiseHistorySetMaxLen_(int32_t argc, Janet *argv) {
   janet_fixarity(argc, 1);
-  if (!linenoiseHistorySetMaxLen(janet_getinteger(argv, 0)))
-    janet_panic("linenoiseHistorySetMaxLen: error");
+  if (!shlib_linenoiseHistorySetMaxLen(janet_getinteger(argv, 0)))
+    janet_panic("shlib_linenoiseHistorySetMaxLen: error");
   return janet_wrap_nil();
 }
 
-static Janet linenoiseHistorySave_(int32_t argc, Janet *argv) {
+static Janet shlib_linenoiseHistorySave_(int32_t argc, Janet *argv) {
   janet_fixarity(argc, 1);
-  if (linenoiseHistorySave(janet_getcstring(argv, 0)) != 0)
-    janet_panic("linenoiseHistorySave: error");
+  if (shlib_linenoiseHistorySave(janet_getcstring(argv, 0)) != 0)
+    janet_panic("shlib_linenoiseHistorySave: error");
   return janet_wrap_nil();
 }
 
-static Janet linenoiseHistoryLoad_(int32_t argc, Janet *argv) {
+static Janet shlib_linenoiseHistoryLoad_(int32_t argc, Janet *argv) {
   janet_fixarity(argc, 1);
-  if (linenoiseHistoryLoad(janet_getcstring(argv, 0)) != 0)
-    janet_panic("linenoiseHistoryLoad: error");
+  if (shlib_linenoiseHistoryLoad(janet_getcstring(argv, 0)) != 0)
+    janet_panic("shlib_linenoiseHistoryLoad: error");
   return janet_wrap_nil();
 }
 
@@ -519,14 +518,14 @@ static const JanetReg cfuns[] = {
     {"tcsetattr", tcsetattr_, NULL},
     
     // linenoise - Slightly renamed to make it look nicer.
-    {"ln/get-line", linenoise_, NULL},
-    {"ln/add-completion", linenoiseAddCompletion_, NULL},
-    {"ln/clear-screen", linenoiseClearScreen_, NULL},
-    {"ln/set-multiline", linenoiseSetMultiLine_, NULL},
-    {"ln/history-set-max-len", linenoiseHistorySetMaxLen_, NULL},
-    {"ln/history-add", linenoiseHistoryAdd_, NULL},
-    {"ln/history-load", linenoiseHistoryLoad_, NULL},
-    {"ln/history-save", linenoiseHistorySave_, NULL},
+    {"ln/get-line", shlib_linenoise_, NULL},
+    {"ln/add-completion", shlib_linenoiseAddCompletion_, NULL},
+    {"ln/clear-screen", shlib_linenoiseClearScreen_, NULL},
+    {"ln/set-multiline", shlib_linenoiseSetMultiLine_, NULL},
+    {"ln/history-set-max-len", shlib_linenoiseHistorySetMaxLen_, NULL},
+    {"ln/history-add", shlib_linenoiseHistoryAdd_, NULL},
+    {"ln/history-load", shlib_linenoiseHistoryLoad_, NULL},
+    {"ln/history-save", shlib_linenoiseHistorySave_, NULL},
 
     // libc
     {"wordexp", wordexp_, NULL},

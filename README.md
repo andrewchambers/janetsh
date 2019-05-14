@@ -120,13 +120,9 @@ $ (sh/terminate-all-jobs)
 
 # Installation
 
-Currently janetsh is only suitable for experienced developers, in the future it can be packaged
-in a friendly way.
-
-It requires janet installed from source and a library called linenoise for terminal input, for most people reading "build.sh" and
-customising it for your system is the only way to build it.
-
-Better instructions coming soon...
+```
+./configure && make
+```
 
 # Janetsh Internals
 
