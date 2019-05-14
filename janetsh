@@ -24,9 +24,16 @@
     (def rline (string/reverse line))
     (when-let [idx (string/find " " rline)]
       (set expand-idx (- (length line) idx)))
-    (var to-expand (string (string/slice line expand-idx) "*"))
-    (each choice (sh/expand to-expand)
-      (shlib/ln/add-completion lc (string line choice)))))
+    (var to-expand (string (string/slice line expand-idx)))
+    (var single-expansion (sh/expand to-expand))
+    (when (= (length single-expansion) 1)
+      (let [pattern (string to-expand "*")
+            multi-expansion (sh/expand pattern)]
+        (when (not (and (= 1 (length multi-expansion)) (= pattern (first multi-expansion))))
+          (each choice multi-expansion
+            (let [choice-suffix (string/slice choice (length (first single-expansion)))]
+              (shlib/ln/add-completion lc (string line choice-suffix)))))))))
+
 
 (defn getln [prompt buf]
   (when-let [ln (shlib/ln/get-line prompt *get-completion*)]
