@@ -122,6 +122,8 @@ $ (sh/terminate-all-jobs)
 
 # Installation
 
+You will need janet installed on your system, then you can run:
+
 ```
 ./configure && make
 ```

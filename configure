@@ -9,7 +9,7 @@ fail() {
 
 usage () {
   cat <<EOF
-./configure CC=... CFLAGS=... LDFLAGS=... --prefix=... ---janet-header-cflags=...
+./configure CC=... CFLAGS=... LDFLAGS=... --prefix=... --janet-header-cflags=...
 EOF
   exit 1
 }
@@ -31,10 +31,29 @@ for arg ; do
   esac
 done
 
+check_janet_headers () {
+  cfile="$(mktemp --suffix .c)"
+  cat <<EOF > "$cfile"
+  #include <janet.h>
+  int main() { return 0; }
+EOF
+  $CC -c "$cfile" $janetheadercflags -o /dev/null
+  rm "$cfile"
+}
+
 if test -z "$janetheadercflags"
 then
-  echo "--janet-header-cflags not specified, trying pkg-config"
-  janetheadercflags=$(pkg-config --cflags janet)
+  echo "Checking if janet headers are installed..."
+  if ! check_janet_headers
+  then
+    echo "janet headers not found, trying pkg-config"
+    janetheadercflags=$(pkg-config --cflags janet)
+  fi
+  if ! check_janet_headers
+  then
+    fail "unable to find working janet headers."
+    exit 1
+  fi
 fi
 
 CFLAGS="-fPIC ${CFLAGS} ${janetheadercflags}"
