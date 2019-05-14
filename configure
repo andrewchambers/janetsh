@@ -38,7 +38,9 @@ check_janet_headers () {
   int main() { return 0; }
 EOF
   $CC -c "$cfile" $janetheadercflags -o /dev/null
+  ok="$?"
   rm "$cfile"
+  return "$ok"
 }
 
 echo "Looking for janet headers..."

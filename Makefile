@@ -1,6 +1,6 @@
 .POSIX:
 
--include config.mk
+include config.mk
 
 .PHONY: all
 all: shlib.so
