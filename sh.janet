@@ -132,14 +132,15 @@
 
 (defn job-exit-code
   "Return the exit code of the first failed process
-   in the job. Returns nil if any job has not exited."
+   in the job. Ignores processes that failed due to SIGPIPE
+   Returns nil if any job has not exited."
   [j]
   (reduce
     (fn [code p]
       (and
         code
         (p :exit-code)
-        (if (zero? code)
+        (if (and (zero? code) (not= (p :termsig) SIGPIPE))
           (p :exit-code)
           code)))
     0 (j :procs)))
@@ -532,6 +533,14 @@
         (if ,fg
           (,job-exit-code j)
           j))))))
+
+(defmacro $??
+  [& forms]
+  # This is probably my inexperience with macros
+  # I'm not sure we should be calling macex. Make this
+  # nicer...
+  (let [rc-forms (macex (tuple '$? ;forms))]
+    ~(= 0 ,rc-forms)))
 
 (defmacro $$
   [& forms]

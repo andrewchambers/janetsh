@@ -57,9 +57,10 @@
 (setdyn :pretty-format "%.40p")
 
 # convenience bindings.
-(def $$ :macro sh/$$)
-(def $? :macro sh/$?)
-(def $  :macro sh/$)
+(def $?? :macro sh/$??)
+(def $$  :macro sh/$$)
+(def $?  :macro sh/$?)
+(def $   :macro sh/$)
 (def clear sh/clear)
 (def do-lines sh/do-lines)
 (def out-lines sh/out-lines)
