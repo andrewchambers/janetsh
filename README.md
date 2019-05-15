@@ -104,9 +104,13 @@ the following snippets may help advanced users play with the shell in it's curre
 
 ## RC file
 
-Janetsh loads ```~/janetsh.rc``` at startup in interactive mode, which can be used to provide
+Janetsh loads ```~/.janetsh.rc``` at startup in interactive mode, which can be used to provide
 extra functions, change the prompt function ```*get-prompt*``` and change the completion function
 ```*get-completion*```.
+
+## History file
+
+Janetsh stores terminal history in ```~/.janetsh.hist```.
 
 ## Job control
 
