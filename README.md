@@ -86,6 +86,17 @@ JANETSH
 0
 ```
 
+## Exceptions/Errors
+
+```
+$ (try
+    (do
+      ($ rm foo.txt)
+      ($ rm bar.txt)
+      ($ rm baz.txt))
+    ([err] (print "got an error:" err)))
+```
+
 # Reference Documentation
 
 Hopefully in the future this sparse reference set will become more polished, but for now
