@@ -441,12 +441,16 @@
     :keyword true
     false))
 
+(defn clear
+  []
+  (ln/clear-screen))
+
 (defn parse-builtin
   [f]
   (when-let [bi (first f)]
     (cond
-      (= 'cd bi) (tuple 'os/cd ;(flatten (map form-to-arg (tuple/slice f 1))))
-      (= 'clear bi) '(sh/clear)
+      (= 'cd bi) (tuple os/cd ;(flatten (map form-to-arg (tuple/slice f 1))))
+      (= 'clear bi) (tuple clear)
       nil)))
   
 (defn parse-job
@@ -492,10 +496,6 @@
 (defn expand
   [s]
   (wordexp s))
-
-(defn clear
-  []
-  (ln/clear-screen))
 
 (defn do-lines
   [f]
