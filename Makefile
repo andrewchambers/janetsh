@@ -10,7 +10,8 @@ SHLIB_HEADERS=\
 
 SHLIB_SRC=\
 	./shlib/shlib.c \
-	./shlib/shlib_linenoise.c
+	./shlib/shlib_linenoise.c \
+	./shlib/shlib_utf8.c
 
 SHLIB_OBJ=$(SHLIB_SRC:%.c=%.o)
 

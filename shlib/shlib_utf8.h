@@ -1,4 +1,4 @@
-/* linenoise.h -- VERSION 1.0
+/* encodings/utf8.h -- VERSION 1.0
  *
  * Guerrilla line editing library against the idea that a line editing lib
  * needs to be 20,000 lines of C code.
@@ -36,47 +36,20 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __SHLIB_LINENOISE_H
-#define __SHLIB_LINENOISE_H
+#ifndef __LINENOISE_ENCODINGS_UTF8_H
+#define __LINENOISE_ENCODINGS_UTF8_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef struct linenoiseCompletions {
-  size_t len;
-  char **cvec;
-} linenoiseCompletions;
-
-typedef void(linenoiseCompletionCallback)(const char *, linenoiseCompletions *);
-typedef char*(linenoiseHintsCallback)(const char *, int *color, int *bold);
-typedef void(linenoiseFreeHintsCallback)(void *);
-void shlib_linenoiseSetCompletionCallback(linenoiseCompletionCallback *);
-void shlib_linenoiseSetHintsCallback(linenoiseHintsCallback *);
-void shlib_linenoiseSetFreeHintsCallback(linenoiseFreeHintsCallback *);
-void shlib_linenoiseAddCompletion(linenoiseCompletions *, const char *);
-
-char *shlib_linenoise(const char *prompt);
-void shlib_linenoiseFree(void *ptr);
-int shlib_linenoiseHistoryAdd(const char *line);
-int shlib_linenoiseHistorySetMaxLen(int len);
-int shlib_linenoiseHistorySave(const char *filename);
-int shlib_linenoiseHistoryLoad(const char *filename);
-void shlib_linenoiseClearScreen(void);
-void shlib_linenoiseSetMultiLine(int ml);
-void shlib_linenoisePrintKeyCodes(void);
-
-typedef size_t (linenoisePrevCharLen)(const char *buf, size_t buf_len, size_t pos, size_t *col_len);
-typedef size_t (linenoiseNextCharLen)(const char *buf, size_t buf_len, size_t pos, size_t *col_len);
-typedef size_t (linenoiseReadCode)(int fd, char *buf, size_t buf_len, int* c);
-
-void shlib_linenoiseSetEncodingFunctions(
-    linenoisePrevCharLen *prevCharLenFunc,
-    linenoiseNextCharLen *nextCharLenFunc,
-    linenoiseReadCode *readCodeFunc);
+size_t shlib_linenoiseUtf8PrevCharLen(const char* buf, size_t buf_len, size_t pos, size_t *col_len);
+size_t shlib_linenoiseUtf8NextCharLen(const char* buf, size_t buf_len, size_t pos, size_t *col_len);
+size_t shlib_linenoiseUtf8ReadCode(int fd, char* buf, size_t buf_len, int* cp);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __SHLIB_LINENOISE_H */
+#endif /* __LINENOISE_ENCODINGS_UTF8_H */
+
