@@ -19,7 +19,7 @@
 # Use a var so users can redefine this in rc file.
 (var *get-completion*
   (fn get-completion
-    [line lc]
+    [line add-completion]
     (var expand-idx 0)
     (def rline (string/reverse line))
     (when-let [idx (string/find " " rline)]
@@ -32,11 +32,13 @@
         (when (not (and (= 1 (length multi-expansion)) (= pattern (first multi-expansion))))
           (each choice multi-expansion
             (let [choice-suffix (string/slice choice (length (first single-expansion)))]
-              (shlib/ln/add-completion lc (string line choice-suffix)))))))))
+              (add-completion (string line choice-suffix)))))))))
 
 
 (defn getln [prompt buf]
-  (when-let [ln (shlib/ln/get-line prompt *get-completion*)]
+  (defn get-completion [line lc]
+    (*get-completion* line (partial shlib/ln/add-completion lc)))
+  (when-let [ln (shlib/ln/get-line prompt get-completion)]
     (when (not= (length ln) 0)
       (shlib/ln/history-add ln))
     (buffer/push-string buf ln "\n")
