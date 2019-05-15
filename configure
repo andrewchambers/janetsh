@@ -37,8 +37,11 @@ check_janet_headers () {
   #include <janet.h>
   int main() { return 0; }
 EOF
-  $CC $janetheadercflags -c "$cfile" -o /dev/null > /dev/null 2>&1
+  TEST="$CC $janetheadercflags -c $cfile -o /dev/null"
+  echo "checking headers with \"$TEST\""
+  $TEST > /dev/null 2>&1
   ok="$?"
+  echo "test exited with: $ok"
   rm "$cfile"
   return "$ok"
 }
