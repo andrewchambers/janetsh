@@ -51,10 +51,21 @@
 (var files (sh/$$ ls /))
 (print files)
 
+# The sh/$$_ macro is like sh/$$ only it
+# also trims all trailing whitespace from the output.
+# This is often useful because lots of command output ends with
+# an unwanted newline.
+(print (sh/$$_ echo hello | wc -c ))
+
 # The sh/$? macro returns the external command's exit code.
 # We can build complex control flow easily using this construct.
 (when (not= 0 (sh/$? true))
   (error "this shouldn't happen"))
+
+# The sh/$?? macro returns true or false if a command was a success
+# or failure, making it easier to use in if/when forms.
+(when (sh/$?? touch /tmp/ok.txt)
+  (print "touched a file."))
 
 # Now let's look at background jobs.
 # 

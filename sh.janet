@@ -542,7 +542,7 @@
   # This is probably my inexperience with macros
   # I'm not sure we should be calling macex. Make this
   # nicer...
-  (let [rc-forms (macex (tuple '$? ;forms))]
+  (let [rc-forms ($? ;forms)]
     ~(= 0 ,rc-forms)))
 
 (defmacro $$
@@ -556,9 +556,8 @@
 
 (defmacro $$_
   [& forms]
-  (let [out-forms (macex (tuple '$$ ;forms))]
+  (let [out-forms ($$ ;forms)]
     ~(string/trimr ,out-forms)))
-
 
 (init)
 

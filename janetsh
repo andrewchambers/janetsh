@@ -60,7 +60,7 @@
 
 # convenience bindings.
 (def $?? :macro sh/$??)
-(def $$_  :macro sh/$$_)
+(def $$_ :macro sh/$$_)
 (def $$  :macro sh/$$)
 (def $?  :macro sh/$?)
 (def $   :macro sh/$)
