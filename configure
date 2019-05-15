@@ -32,7 +32,7 @@ for arg ; do
 done
 
 check_janet_headers () {
-  cfile="$(mktemp --suffix .c)"
+  cfile="$(mktemp -u).c"
   cat <<EOF > "$cfile"
   #include <janet.h>
   int main() { return 0; }
