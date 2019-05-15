@@ -32,17 +32,18 @@ for arg ; do
 done
 
 check_janet_headers () {
-  cfile="$(mktemp -u).c"
+  tempdir="$(mktemp -d)"
+  cfile="$tempdir/test.c"
   cat <<EOF > "$cfile"
   #include <janet.h>
   int main() { return 0; }
 EOF
-  TEST="$CC $janetheadercflags -c $cfile -o /dev/null"
+  TEST="$CC $janetheadercflags -c $cfile -o $tempdir/test.out"
   echo "checking headers with \"$TEST\""
   $TEST > /dev/null 2>&1
   ok="$?"
   echo "test exited with: $ok"
-  rm "$cfile"
+  rm -r "$tempdir"
   return "$ok"
 }
 
