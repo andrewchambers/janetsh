@@ -133,14 +133,17 @@
 (defn job-exit-code
   "Return the exit code of the first failed process
    in the job. Ignores processes that failed due to SIGPIPE
+   unless they are the last process in the pipeline.
    Returns nil if any job has not exited."
   [j]
+  (def last-proc (last (j :procs)))
   (reduce
     (fn [code p]
       (and
         code
         (p :exit-code)
-        (if (and (zero? code) (not= (p :termsig) SIGPIPE))
+        (if (and (zero? code)
+                 (or (not= (p :termsig) SIGPIPE) (= p last-proc)))
           (p :exit-code)
           code)))
     0 (j :procs)))
