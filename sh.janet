@@ -554,6 +554,11 @@
         (error "$$ does not support background jobs"))
       ~(,job-output ,j))))
 
+(defmacro $$_
+  [& forms]
+  (let [out-forms (macex (tuple '$$ ;forms))]
+    ~(string/trimr ,out-forms)))
+
 
 (init)
 
