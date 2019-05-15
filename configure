@@ -37,22 +37,22 @@ check_janet_headers () {
   #include <janet.h>
   int main() { return 0; }
 EOF
-  $CC -c "$cfile" $janetheadercflags -o /dev/null > /dev/null 2>&1
+  $CC $janetheadercflags -c "$cfile" -o /dev/null > /dev/null 2>&1
   ok="$?"
   rm "$cfile"
   return "$ok"
 }
 
-echo "Looking for janet headers..."
+echo "Testing janet headers..."
 if ! check_janet_headers
 then
-  echo "janet headers not found, trying pkg-config..."
+  echo "janet headers did not work, trying pkg-config..."
   janetheadercflags=$(pkg-config --cflags janet)
-fi
-if ! check_janet_headers
-then
-  fail "unable to find working janet headers."
-  exit 1
+  if ! check_janet_headers
+  then
+    fail "unable to find working janet headers."
+    exit 1
+  fi
 fi
 
 CFLAGS="-fPIC ${CFLAGS} ${janetheadercflags}"
