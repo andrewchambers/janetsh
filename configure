@@ -54,7 +54,6 @@ then
   if ! check_janet_headers
   then
     fail "unable to find working janet headers."
-    exit 1
   fi
 fi
 
