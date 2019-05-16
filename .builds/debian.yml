@@ -1,0 +1,9 @@
+image: debian/stable
+packages:
+  - expect
+sources:
+  - https://github.com/andrewchambers/janetsh
+tasks:
+  - build: |
+      cd janetsh
+      ./janetsh/.builds/ci.sh

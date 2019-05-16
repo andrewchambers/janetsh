@@ -19,7 +19,7 @@ shlib.so: $(SHLIB_OBJ)
 	$(CC) -shared $(LDFLAGS) $(janetheadercflags) -I./shlib/ $(SHLIB_OBJ) -o $@
 
 .PHONY: install
-install:
+install: shlib.so
 	mkdir -p $(PREFIX)/bin/
 	mkdir -p $(PREFIX)/lib/janetsh
 	install ./shlib.so $(PREFIX)/lib/janetsh/
