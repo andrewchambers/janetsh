@@ -2,6 +2,7 @@ image: archlinux
 packages:
   - expect
   - curl
+  - strace
 sources:
   - https://github.com/andrewchambers/janetsh
 tasks:

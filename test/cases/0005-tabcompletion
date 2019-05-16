@@ -6,9 +6,9 @@ mkdir foo
 touch ./foo/a.txt
 touch ./foo/b.txt
 
-janetsh=$(realpath `which janetsh`)
+janetsh=$(realpath $(which janetsh))
 
-expect <<EOF
+strace expect <<EOF
 set timeout 5
 spawn $janetsh
 sleep 0.2
