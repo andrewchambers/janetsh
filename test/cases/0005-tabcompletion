@@ -1,0 +1,24 @@
+#! /bin/sh
+
+set -eu
+
+mkdir foo
+touch ./foo/a.txt
+touch ./foo/b.txt
+
+expect <<EOF
+set timeout 5
+spawn "janetsh"
+sleep 0.2
+send "echo ./fo"
+send "\t"
+expect timeout { exit 1 } "./foo"
+send "/\t"
+expect timeout { exit 1 } "a.txt"
+send "\t"
+expect timeout { exit 1 } "b.txt"
+send "\t"
+expect timeout { exit 1 } "./foo/"
+send \x04
+EOF
+

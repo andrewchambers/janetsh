@@ -9,5 +9,6 @@ in
       janet
       asciinema
       tmux
+      expect
     ];
   }
