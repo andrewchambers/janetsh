@@ -1,0 +1,9 @@
+#! /bin/sh
+set -eux
+
+janetsh $TEST_CASE/case.janet &
+janetpid="$!"
+sleep 0.2
+kill -TERM "$janetpid"
+wait
+test "success" = "$(cat result.txt)"

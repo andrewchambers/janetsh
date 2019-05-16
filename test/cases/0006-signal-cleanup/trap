@@ -1,0 +1,14 @@
+#! /bin/sh
+set -eu
+
+on_sig () {
+  echo "got sigterm..."
+  echo success > result.txt
+  exit 1
+}
+
+trap "on_sig" SIGTERM
+while true
+do
+  sleep 0.01
+done
