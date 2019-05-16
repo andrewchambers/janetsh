@@ -1,4 +1,4 @@
-image: archlinux
+image: debian/stable
 packages:
   - expect
   - curl
