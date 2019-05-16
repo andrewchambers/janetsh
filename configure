@@ -14,7 +14,7 @@ EOF
   exit 1
 }
 
-janetheadercflags=""
+JANET_HEADER_CFLAGS=""
 prefix="/usr"
 CC="${CC:-cc}"
 CFLAGS="${CFLAGS:--Wall -O2}"
@@ -23,7 +23,7 @@ LDFLAGS="${LDFLAGS:-}"
 for arg ; do
   case "$arg" in
   --prefix=*) prefix=${arg#*=} ;;  
-  --janet-header-cflags=*) janetheadercflags=${arg#*=} ;;
+  --janet-header-cflags=*) JANET_HEADER_CFLAGS=${arg#*=} ;;
   CC=*) CC=${arg#*=} ;;
   CFLAGS=*) CFLAGS=${arg#*=} ;;
   --help) usage ;;
@@ -38,7 +38,7 @@ check_janet_headers () {
   #include <janet.h>
   int main() { return 0; }
 EOF
-  TEST="$CC $janetheadercflags -c $cfile -o $tempdir/test.out"
+  TEST="$CC $JANET_HEADER_CFLAGS -c $cfile -o $tempdir/test.out"
   echo "checking headers with \"$TEST\""
   $TEST > /dev/null 2>&1
   rc="$?"
@@ -51,26 +51,25 @@ echo "Testing janet headers..."
 if ! check_janet_headers
 then
   echo "janet headers did not work, trying pkg-config..."
-  janetheadercflags=$(pkg-config --cflags janet)
+  JANET_HEADER_CFLAGS=$(pkg-config --cflags janet)
   if ! check_janet_headers
   then
     fail "unable to find working janet headers."
   fi
 fi
 
-CFLAGS="-fPIC ${CFLAGS} ${janetheadercflags}"
+CFLAGS="${CFLAGS} ${JANET_HEADER_CFLAGS}"
+
+echo "writing config.inc"
+cat >config.inc <<EOF
+PREFIX="${prefix}"
+CC="${CC}"
+CFLAGS="${CFLAGS}"
+LDFLAGS="${LDFLAGS}"
+JANET_HEADER_CFLAGS="${JANET_HEADER_CFLAGS}"
+EOF
+
 
 echo "configured with:"
-echo "prefix=${prefix}"
-echo "CC=$CC"
-echo "CFLAGS=$CFLAGS"
-echo "LDFLAGS=$LDFLAGS"
-
-echo "writing config.mk"
-cat >config.mk <<EOF
-PREFIX=${prefix}
-CC=${CC}
-CFLAGS=${CFLAGS}
-LDFLAGS=${LDFLAGS}
-EOF
+cat config.inc
 
