@@ -403,14 +403,15 @@
   @[a b c])
 
 (def- redir-grammar
+  )
+
+(def- redir-parser (peg/compile
   ~{
     :fd (replace (<- (some (range "09"))) ,scan-number)
     :redir
       (* (+ :fd (<- "")) (<- (+ ">>" ">" "<")) (+ (* "&" :fd ) (<- (any 1))))
     :main (replace :redir ,norm-redir)
-   })
-
-(def- redir-parser (peg/compile redir-grammar))
+  }))
 
 (defn parse-redir
   [r]
@@ -434,15 +435,13 @@
   [s] 
   (string (get-home) "/"))
 
-(def- expand-grammar
+(def- expand-parser (peg/compile
   ~{
     :env-esc (replace (<- "$$") "$")
     :env-seg (* "$" (replace (<- (some (+ "_" (range "az") (range "AZ")))) ,expand-getenv)) 
     :lit-seg (<- (some (* (not "$") 1)))
     :main (* (? (replace (<- "~/") ,tildhome)) (any (choice :env-esc :env-seg :lit-seg)))
-   })
-
-(def- expand-parser (peg/compile expand-grammar))
+  }))
 
 (defn expand
   [s]
