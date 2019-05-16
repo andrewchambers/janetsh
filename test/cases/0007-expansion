@@ -1,0 +1,14 @@
+#! /usr/bin/env janetsh
+(import sh)
+
+(defn e [s] (first (sh/expand s)))
+
+(when (not= (e "$PWD") (os/cwd))
+  (error "fail1"))
+
+(when (not= (e "~") (os/getenv "HOME"))
+  (error "fail2"))
+
+(when (not= (e "~/~/$$$PWD/foo$XXXUNDEFINEDXXX")
+            (string (os/getenv "HOME") "/~/$" (os/cwd) "/foo"))
+  (error "fail3"))

@@ -417,6 +417,39 @@
   (let [match (peg/match redir-parser (string r))]
     (when match (first match))))
 
+(defn- get-home
+  []
+  (os/getenv "HOME"))
+
+(defn- expand-getenv 
+  [s]
+  (or 
+    (match s
+      "HOME" (get-home)
+      "PWD" (os/cwd)
+      (os/getenv s))
+    ""))
+
+(defn- tildhome
+  [s] 
+  (string (get-home) "/"))
+
+(def- expand-grammar
+  ~{
+    :env-esc (replace (<- "$$") "$")
+    :env-seg (* "$" (replace (<- (some (+ "_" (range "az") (range "AZ")))) ,expand-getenv)) 
+    :lit-seg (<- (some (* (not "$") 1)))
+    :main (* (? (replace (<- "~/") ,tildhome)) (any (choice :env-esc :env-seg :lit-seg)))
+   })
+
+(def- expand-parser (peg/compile expand-grammar))
+
+(defn expand
+  [s]
+  (var s s)
+  (when (= s "~") (set s (get-home)))
+  (glob (string ;(peg/match expand-parser s))))
+
 (defn- form-to-arg
   [f]
   (match (type f)
@@ -425,12 +458,12 @@
             (= (first f) 'quasiquote)
             (= (length f) 2)
             (= (type (f 1)) :symbol))
-        (wordexp (string "~" (f 1)))
+        (tuple expand (string "~" (f 1)))
         f)
     :keyword
-      (wordexp (string f))
+      (tuple expand (string f))
     :symbol
-      (wordexp (string f))
+      (tuple expand (string f))
     (string f)))
 
 (defn- arg-symbol?
@@ -491,10 +524,6 @@
   (when (empty? (job :procs))
     (error "empty shell job"))
   [job fg])
-
-(defn expand
-  [s]
-  (wordexp s))
 
 (defn do-lines
   [f]

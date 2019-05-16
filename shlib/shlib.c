@@ -9,7 +9,7 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <wordexp.h>
+#include <glob.h>
 #include "shlib_linenoise.h"
 
 #define panic_errno(NAME, e) \
@@ -179,36 +179,21 @@ STATUS_FUNC_BOOL(WIFCONTINUED);
 STATUS_FUNC_BOOL(WIFSIGNALED);
 STATUS_FUNC_BOOL(WIFSTOPPED);
 
-static Janet wordexp_(int32_t argc, Janet *argv) {
-  wordexp_t p;
+static Janet glob_(int32_t argc, Janet *argv) {
+  glob_t g;
 
   janet_fixarity(argc, 1);
+  const char *pattern = janet_getcstring(argv, 0);
+  if (glob(pattern, GLOB_ERR|GLOB_NOCHECK, NULL, &g) != 0)
+    panic_errno("glob", errno);
 
-  switch (wordexp(janet_getcstring(argv, 0), &p, WRDE_NOCMD | WRDE_UNDEF)) {
-  case 0:
-    break;
-  case WRDE_BADCHAR:
-    janet_panic("wordexp: Illegal occurrence of newline or one of |, &, ;, <, >, (, ),{, }.");
-  case WRDE_BADVAL:
-    janet_panic("wordexp: An undefined shell variable was referenced.");
-  case WRDE_CMDSUB:
-    janet_panic("wordexp: Command substitution not supported.");
-  case WRDE_NOSPACE:
-    janet_panic("wordexp: Out of memory.");
-  case WRDE_SYNTAX:
-    janet_panic("wordexp: Syntax error.");
-  default:
-    janet_panic("wordexp: Unknown error.");
-  }
+  char **p = g.gl_pathv;
+  JanetArray *a = janet_array(g.gl_pathc);
 
-  char **w = p.we_wordv;
+  for (int i = 0; i < g.gl_pathc; i++)
+     janet_array_push(a, janet_cstringv(p[i]));
   
-  JanetArray *a = janet_array(p.we_wordc);
-
-  for (int i = 0; i < p.we_wordc; i++)
-     janet_array_push(a, janet_cstringv(w[i]));
-  
-  wordfree(&p);
+  globfree(&g);
 
   return janet_wrap_array(a);
 }
@@ -483,6 +468,7 @@ static Janet set_noninteractive_signal_handlers(int32_t argc, Janet *argv) {
 
 static const JanetReg cfuns[] = {
     // Unistd / Libc
+    {"glob", glob_, NULL},
     {"fork", jfork_, NULL},
     {"exec", exec, NULL},
     {"isatty", isatty_, NULL},
@@ -505,7 +491,7 @@ static const JanetReg cfuns[] = {
     {"WSTOPSIG", WSTOPSIG_, NULL},
     {"WIFSTOPPED", WIFSTOPPED_, NULL},
     {"WIFCONTINUED", WIFCONTINUED_, NULL},
-
+  
     // signal handlers
     {"register-unsafe-child-array", register_unsafe_child_array, NULL},
     {"mask-cleanup-signals", mask_cleanup_signals, NULL},
@@ -527,8 +513,6 @@ static const JanetReg cfuns[] = {
     {"ln/history-load", shlib_linenoiseHistoryLoad_, NULL},
     {"ln/history-save", shlib_linenoiseHistorySave_, NULL},
 
-    // libc
-    {"wordexp", wordexp_, NULL},
     {NULL, NULL, NULL}
 };
 

@@ -5,7 +5,7 @@
 
 (sh/init)
 
-(var rc-file (first (shlib/wordexp "~/.janetsh.rc")))
+(var rc-file (first (sh/expand "~/.janetsh.rc")))
 (var *hist-file* nil)
 
 (var *get-prompt*
