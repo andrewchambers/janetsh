@@ -7,7 +7,7 @@ on_sig () {
   exit 1
 }
 
-trap "on_sig" SIGTERM
+trap "on_sig" TERM
 while true
 do
   sleep 0.01

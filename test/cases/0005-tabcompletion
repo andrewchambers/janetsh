@@ -21,4 +21,3 @@ send "\t"
 expect timeout { exit 1 } "./foo/"
 send \x04
 EOF
-
