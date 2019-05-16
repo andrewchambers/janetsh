@@ -60,23 +60,9 @@
   (register-unsafe-child-array unsafe-child-array)
   (enable-cleanup-signals)
 
-
-  # See here [2] for an explanation of what this block accomplishes
-  # and why. Init should be called before job control functions are used.
-  (if (and is-interactive (not is-subshell))
-    (do
-      (var shell-pgid (getpgrp))
-      (while (not= (tcgetpgrp STDIN_FILENO) shell-pgid)
-        (set shell-pgid (getpgrp))
-        (kill (- shell-pgid SIGTTIN)))
-      (set-interactive-signal-handlers)
-      # XXX The original reference does this, but in some cases it fails.
-      # Do we need this?
-      # (setpgid (getpid) (getpid))
-      (tcsetpgrp STDIN_FILENO shell-pgid)
-      (set shell-tmodes (tcgetattr STDIN_FILENO)))
-    (do
-      (set-noninteractive-signal-handlers)))
+  (if (and is-interactive (not is-subshell) (= (tcgetpgrp STDIN_FILENO) (getpgrp)))
+    (set-interactive-signal-handlers)
+    (set-noninteractive-signal-handlers))
   (set initialized true)
   nil)
 
@@ -176,19 +162,23 @@
       (error err))))
   j)
 
+(defn update-job-status
+  [j]
+  (try
+    (while true
+      (let [[pid status] (waitpid (- (j :pgid)) (bor WUNTRACED WNOHANG WCONTINUED WSTOPPED))]
+        (when (= pid 0) (break))
+        (update-pid-status pid status)))
+    ([err]
+      (if (= ECHILD (dyn :errno))
+        (mark-missing-job-as-complete j)
+        (error err)))))
+
 (defn update-all-jobs-status
   []
   (each j jobs
     (when (not (job-complete? j))
-      (try
-        (while true
-          (let [[pid status] (waitpid (- (j :pgid)) (bor WUNTRACED WNOHANG WCONTINUED WSTOPPED))]
-            (when (= pid 0) (break))
-            (update-pid-status pid status)))
-        ([err]
-          (if (= ECHILD (dyn :errno))
-            (mark-missing-job-as-complete j)
-            (error err))))))
+      (update-job-status j)))
   jobs)
 
 (defn terminate-job
@@ -234,12 +224,17 @@
   (when (j :tmodes)
     (tcsetattr STDIN_FILENO TCSADRAIN (j :tmodes)))
   (tcsetpgrp STDIN_FILENO (j :pgid))
+  # If the job wrote to the terminal
+  # it might be stopped, we need to collect this
+  # status change AFTER we set the terminal pgroup.
+  (update-job-status j)
   (when (job-stopped? j)
     (continue-job j))
   (wait-for-job j)
   (tcsetpgrp STDIN_FILENO (getpgrp))
   (put j :tmodes (tcgetattr STDIN_FILENO))
-  (tcsetattr STDIN_FILENO TCSADRAIN shell-tmodes))
+  (tcsetattr STDIN_FILENO TCSADRAIN shell-tmodes)
+  (job-exit-code j))
 
 (defn make-job-bg
   [j]
@@ -277,6 +272,8 @@
 
 (defn launch-job
   [j in-foreground]
+  (when (not initialized)
+    (error "uninitialized janetsh runtime."))
   (try
     (do
       (disable-cleanup-signals)
@@ -304,7 +301,7 @@
               (set pipes nil)
               (set outfd STDOUT_FILENO)))
 
-          # As mentioned in [3] we must set the right pgid
+          # As mentioned in [2] we must set the right pgid
           # in both the parent and the child to avoid a race
           # condition when we start waiting on the process group.
           (defn 
@@ -313,7 +310,9 @@
               (put j :pgid pid))
             (setpgid pid (j :pgid))
             (put proc :pid pid)
-            (put pid2proc pid proc))
+            (put pid2proc pid proc)
+            (when (and is-interactive in-foreground)
+              (tcsetpgrp STDIN_FILENO (j :pgid))))
 
           (var pid (fork))
           
@@ -326,10 +325,6 @@
                 # We want to discard any buffered input after we fork.
                 # There is currently no way to do this. (fpurge stdin)
                 (post-fork pid)
-
-                (when is-interactive
-                  (when in-foreground
-                    (tcsetpgrp STDIN_FILENO (j :pgid))))
 
                 (when pipes
                   (close (pipes 0)))
@@ -559,9 +554,6 @@
   (let [out-forms ($$ ;forms)]
     ~(string/trimr ,out-forms)))
 
-(init)
-
 # References
 # [1] https://www.gnu.org/software/libc/manual/html_node/Implementing-a-Shell.html
-# [2] https://www.gnu.org/software/libc/manual/html_node/Initializing-the-Shell.html#Initializing-the-Shell
-# [3] https://www.gnu.org/software/libc/manual/html_node/Launching-Jobs.html#Launching-Jobs
+# [2] https://www.gnu.org/software/libc/manual/html_node/Launching-Jobs.html#Launching-Jobs

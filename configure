@@ -41,10 +41,10 @@ EOF
   TEST="$CC $janetheadercflags -c $cfile -o $tempdir/test.out"
   echo "checking headers with \"$TEST\""
   $TEST > /dev/null 2>&1
-  ok="$?"
-  echo "test exited with: $ok"
+  rc="$?"
+  echo "test exited with: $rc"
   rm -r "$tempdir"
-  return "$ok"
+  return "$rc"
 }
 
 echo "Testing janet headers..."

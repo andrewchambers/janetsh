@@ -3,6 +3,8 @@
 (import shlib)
 (import sh)
 
+(sh/init)
+
 (def hist-file (first (shlib/wordexp "~/.janetsh.hist")))
 (def rc-file (first (shlib/wordexp "~/.janetsh.rc")))
 
@@ -33,7 +35,6 @@
           (each choice multi-expansion
             (let [choice-suffix (string/slice choice (length (first single-expansion)))]
               (add-completion (string line choice-suffix)))))))))
-
 
 (defn getln [prompt buf]
   (defn get-completion [line lc]

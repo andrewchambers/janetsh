@@ -1,0 +1,25 @@
+#! /bin/sh
+
+set -eu
+
+scriptdir="$( cd "$( dirname "$0" )" && pwd )"
+
+t="$(realpath $1)"
+run="$t"
+if test -d "$t"
+then
+  run="$t/run"
+fi
+
+workingdir="$(mktemp -d)"
+
+cd "$workingdir"
+
+set +e
+timeout 60 "$run"
+rc="$?"
+set -e
+
+rm -r "$workingdir"
+
+exit "$rc"

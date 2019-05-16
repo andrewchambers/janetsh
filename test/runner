@@ -1,0 +1,81 @@
+#! /usr/bin/env janet
+
+# Note, the test runner is janet not janetsh because we can't trust
+# janetsh until it is tested.
+
+
+(def test-case-dir "./test/cases")
+(when (not (os/stat test-case-dir ))
+  (error "please run test runner from root directory"))
+
+(defn new-summary
+  []
+  @{:passed 0 :failed 0 :total 0})
+
+(defn summary-merge
+  [summary other]
+  (each k [:passed :failed :total]
+    (put summary k (+ (summary k) (other k))))
+  summary)
+
+(defn summary-inc-key
+  [summary key]
+  (put summary key (inc (summary key))))
+
+(defn summary-add-failure
+  [summary]
+  (summary-inc-key summary :failed)
+  (summary-inc-key summary :total)
+  summary)
+
+(defn summary-add-pass
+  [summary]
+  (summary-inc-key summary :passed)
+  (summary-inc-key summary :total)
+  summary)
+
+(defn summary-pass?
+  [summary]
+  (= (summary :passed) (summary :total)))
+
+(defn print-summary
+  [summary]
+  (print (summary :passed) "/" (summary :total) " passed")
+  (print (summary :failed) " failure(s).")
+  (print "")
+  (if (summary-pass? summary)
+    (print "ok")
+    (print "fail!")))
+
+(defn run-test
+  [t]
+  (def summary (new-summary))
+  (print "running " t " ...")
+  # Janet stdlib is not quite enough, 
+  # use a little helper script.
+  (def exit-code (os/shell (string "./test/run-one " t)))
+  (if (= 0 exit-code)
+    (summary-add-pass summary)
+    (do
+      (print t " failed, exit-code=" exit-code) 
+      (summary-add-failure summary)))
+  summary)
+
+(defn run-all-tests
+  []
+  (def summary (new-summary))
+  (var all-tests (os/dir test-case-dir))
+  (each t all-tests
+    (summary-merge summary (run-test (string test-case-dir "/"  t))))
+  summary)
+
+(var summary
+  (cond
+    (= 3 (length process/args)) (run-test (process/args 2))
+    (= 2 (length process/args)) (run-all-tests)
+    (error "expected 0 or 1 args.")))
+
+(print "")
+(print-summary summary)
+(when (not (summary-pass? summary))
+  (os/exit 1))

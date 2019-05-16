@@ -2,6 +2,7 @@
 
 [![Gitter](https://badges.gitter.im/janetsh/community.svg)](https://gitter.im/janetsh/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 [Mailing list](https://lists.sr.ht/~ach/janetsh)
+[Help develop janetsh, donate via paypal](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=Y3SWVCXV3PEA6&source=url)
 
 A new system shell that uses the [Janet](https://janet-lang.org/) programming language
 for high level scripting while also supporting the things we love about sh.
@@ -172,7 +173,8 @@ The author would love donations or help from fellow developers to keep things go
 Donations will go towards living expenses while developing janetsh and providing upstream support for
 the janet programming language issues that affect Janetsh.
 
-[Donate here via paypal](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=Y3SWVCXV3PEA6&source=url)
+
+This project takes considerable time an effort, please [donate here via paypal](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=Y3SWVCXV3PEA6&source=url) to keep the project alive.
 
 At your request with each donation leave a message and if appropriate, it will be included below.
 
