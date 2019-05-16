@@ -165,7 +165,7 @@
   [j]
   (try
     (while (not (or (job-stopped? j) (job-complete? j)))
-      (let [[pid status] (waitpid (- (j :pgid)) (bor WUNTRACED WCONTINUED WSTOPPED))]
+      (let [[pid status] (waitpid (- (j :pgid)) (bor WUNTRACED WCONTINUED))]
         (update-pid-status pid status)))
   ([err]
     (if (= ECHILD (dyn :errno))
@@ -177,7 +177,7 @@
   [j]
   (try
     (while true
-      (let [[pid status] (waitpid (- (j :pgid)) (bor WUNTRACED WNOHANG WCONTINUED WSTOPPED))]
+      (let [[pid status] (waitpid (- (j :pgid)) (bor WUNTRACED WNOHANG WCONTINUED))]
         (when (= pid 0) (break))
         (update-pid-status pid status)))
     ([err]
