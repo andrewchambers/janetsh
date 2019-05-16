@@ -16,4 +16,4 @@
   (error "fail 3"))
 
 # no exception.
-(sh/$ head -c 16  /dev/urandom | xxd | sort > /dev/null)
+(sh/$ head -c 16  /dev/urandom | base64 | sort > /dev/null)
