@@ -6,4 +6,4 @@ sources:
 tasks:
   - build: |
       cd janetsh
-      ./janetsh/.builds/ci.sh
+      ./janetsh/support/ci.sh
