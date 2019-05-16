@@ -5,14 +5,8 @@
 
 (sh/init)
 
-(def hist-file (first (shlib/wordexp "~/.janetsh.hist")))
-(def rc-file (first (shlib/wordexp "~/.janetsh.rc")))
-
-(shlib/ln/history-set-max-len 512)
-(shlib/ln/set-multiline true)
-(try 
-  (shlib/ln/history-load hist-file)
-  ([e] nil))
+(var rc-file (first (shlib/wordexp "~/.janetsh.rc")))
+(var *hist-file* nil)
 
 (var *get-prompt*
   (fn get-prompt [p]
@@ -77,8 +71,23 @@
   (when (os/stat rc-file)
     # FIXME - slurp loses file name.
     (eval-string (slurp rc-file)))
+  
+  (var hist-file nil)
+  # Shell expand the hist file for the user.
+  (when *hist-file*
+    (set hist-file (first (sh/expand *hist-file*))))
+
+  (when hist-file
+    (shlib/ln/history-set-max-len 1024)
+    (shlib/ln/set-multiline true)
+    (try
+      (shlib/ln/history-load hist-file)
+      ([e] nil)))
+  
   (repl getchunk nil user-env)
-  (shlib/ln/history-save hist-file))
+  
+  (when hist-file
+    (shlib/ln/history-save hist-file)))
 
 (set run-func
   (cond
