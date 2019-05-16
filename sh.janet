@@ -224,9 +224,6 @@
   (when (j :tmodes)
     (tcsetattr STDIN_FILENO TCSADRAIN (j :tmodes)))
   (tcsetpgrp STDIN_FILENO (j :pgid))
-  # If the job wrote to the terminal
-  # it might be stopped, we need to collect this
-  # status change AFTER we set the terminal pgroup.
   (update-job-status j)
   (when (job-stopped? j)
     (continue-job j))
