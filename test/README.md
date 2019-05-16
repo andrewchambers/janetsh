@@ -28,7 +28,6 @@ outside of the working directory.
 
 The absolute path to the test case being run, .i.e. realpath ./case/$t
 
-
 ## Test dependencies
 
 Tests can rely on the following dependencies in $PATH

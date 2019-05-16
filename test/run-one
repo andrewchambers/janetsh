@@ -11,6 +11,7 @@ then
   run="$t/run"
 fi
 
+export TEST_CASE="$t"
 workingdir="$(mktemp -d)"
 
 cd "$workingdir"

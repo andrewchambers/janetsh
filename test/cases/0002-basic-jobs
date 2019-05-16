@@ -7,19 +7,23 @@
 (try (do (sh/$ false) (error "fail") ) ([e] nil))
 
 (when (not= (sh/$$ echo -n hello) "hello")
-  (error "fail"))
+  (error "fail1"))
 
 (when (not= (sh/$$_ echo hello) "hello")
-  (error "fail"))
+  (error "fail2"))
+
+(sh/$ echo hello :2> ./err.txt :1>&2)
+(when (not= (string (slurp "err.txt")) "hello\n")
+ (error "fail3"))
 
 (when (not= (sh/$? sh -c "exit 3") 3)
-  (error "fail"))
+  (error "fail4"))
 
 (when (not (sh/$?? true))
-  (error "fail"))
+  (error "fail5"))
 
 (when (sh/$?? false)
-  (error "fail"))
+  (error "fail6"))
 
 (def j1 (sh/$ sleep "0.1" &))
 (def j2 (sh/$ sleep "120" &))
