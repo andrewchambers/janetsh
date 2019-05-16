@@ -10,5 +10,7 @@ in
       asciinema
       tmux
       expect
+      meson
+      ninja
     ];
   }

@@ -1,4 +1,5 @@
 config.inc
+ci_builds
 .do_built
 .do_built.dir
 shlib.so

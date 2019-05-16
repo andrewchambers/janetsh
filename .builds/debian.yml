@@ -2,7 +2,8 @@ image: archlinux
 packages:
   - expect
   - curl
-  - strace
+  - meson
+  - ninja
 sources:
   - https://github.com/andrewchambers/janetsh
 tasks:

@@ -1,7 +1,9 @@
-image: debian/stable
+image: freebsd/latest
 packages:
   - expect
   - curl
+  - meson
+  - ninja
 sources:
   - https://github.com/andrewchambers/janetsh
 tasks:

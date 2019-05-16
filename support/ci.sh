@@ -4,17 +4,19 @@ set -uex
 
 janetver="dd1a199ebdd200231aeec96906d4eddd24f0321e"
 janeturl="https://github.com/janet-lang/janet/archive/${janetver}.tar.gz"
-cd .builds
+mkdir -p ci_builds
+prefix="$(realpath ./ci_builds)/installed"
+mkdir -p "$prefix"
+cd ci_builds
 curl "$janeturl" -L -o ./janet.tar.gz
 tar xzf ./janet.tar.gz
 cd "janet-${janetver}"
-make clean
-prefix=""
-make
-cd ../..
-./configure --prefix="$(realpath ./.builds/janetsh)" --janet-header-cflags="-I$(realpath ./.builds/janet-${janetver}/src/include)"
+meson . meson --prefix="$prefix"
+cd meson
+ninja install
+cd ../../../
+./configure --prefix="$prefix" --janet-header-cflags="-I$(realpath ./ci_builds/janet-${janetver}/src/include)"
 make clean
 make install
-export PATH="$PATH:$(realpath ./.builds/janet-${janetver}/build)"
-export PATH="$PATH:$(realpath ./.builds/janetsh/bin)"
+export PATH="$prefix/bin:$PATH"
 ./test/runner
