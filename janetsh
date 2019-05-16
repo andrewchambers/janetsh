@@ -69,19 +69,32 @@
 (def do-lines sh/do-lines)
 (def out-lines sh/out-lines)
 
-# Load user rc script.
-# The user can overwrite the prompt with whatever they want.
-(when (os/stat rc-file)
-  # FIXME - slurp loses file name.
-  (eval-string (slurp rc-file)))
+(var run-func nil)
+(def user-env (fiber/getenv (fiber/current)))
 
-# This should be improved.
-(cond
-  (= (length process/args) 2) (repl getchunk nil (fiber/getenv (fiber/current)))
-  (= (length process/args) 3) (import* (get process/args 2)) # Can we import the convenience macros into this import?.
-  (error "expected 0 or 1 arguments"))
+(defn janetsh-repl
+  []
+  (when (os/stat rc-file)
+    # FIXME - slurp loses file name.
+    (eval-string (slurp rc-file)))
+  (repl getchunk nil user-env)
+  (shlib/ln/history-save hist-file))
+
+(set run-func
+  (cond
+    (= (length process/args) 2) janetsh-repl
+    (= (length process/args) 3) (fn [] (import* (get process/args 2) :prefix "" :exit true))
+    (error "expected 0 or 1 arguments")))
+
+(def user-fiber (fiber/new run-func :e))
+(fiber/setenv user-fiber user-env)
+(def fiber-result (resume user-fiber))
 
 (sh/terminate-all-jobs)
-(shlib/ln/history-save hist-file)
-
 (sh/deinit)
+
+(if (= (fiber/status user-fiber) :error)
+ (do
+   (debug/stacktrace user-fiber fiber-result)
+   (os/exit 1))
+ (os/exit 0))

@@ -141,11 +141,19 @@
   [j]
   (number? (job-exit-code j)))
 
+(defn signal-job 
+  [j sig]
+  (try
+    (kill (- (j :pgid)) sig)
+  ([e] 
+    (when (not= ESRCH (dyn :errno))
+      (error e)))))
+
 (defn- continue-job
   [j]
   (each p (j :procs)
     (put p :stopped false))
-  (kill (- (j :pgid)) SIGCONT))
+  (signal-job j SIGCONT))
 
 (defn- mark-missing-job-as-complete
   [j]
@@ -187,11 +195,7 @@
 (defn terminate-job
   [j]
   (when (not (job-complete? j))
-    (try
-      (kill (j :pgid) SIGTERM)
-    ([e] 
-      (when (not= ESRCH (dyn :errno))
-        (error e))))
+    (signal-job j SIGTERM)
     (wait-for-job j))
   j)
 
@@ -525,12 +529,12 @@
   (if-let [builtin (parse-builtin forms)]
     builtin
     (let [[j fg] (parse-job ;forms)]
-      (when (not fg)
-        (error "$? does not support background jobs"))
     ~(do
       (let [j ,j]
         (,launch-job j ,fg)
-        (,job-exit-code j))))))
+        (if ,fg
+          (,job-exit-code j)
+          j))))))
 
 (defmacro $??
   [& forms]

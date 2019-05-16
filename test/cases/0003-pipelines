@@ -1,0 +1,19 @@
+#! /usr/bin/env janetsh
+
+(import sh)
+
+(sh/$ touch a.txt)
+(sh/$ touch b.txt)
+(sh/$ touch c.txt)
+
+(when (not= (sh/$$ ls | head -n 2 | tac) "b.txt\na.txt\n")
+  (error "fail 1"))
+
+(when (not= (sh/$? ls | sh -c "exit 4" | tac) 4)
+  (error "fail 2"))
+
+(when (not= (sh/$? sh -c "exit 4" | cat) 4)
+  (error "fail 3"))
+
+# no exception.
+(sh/$ head -c 16  /dev/urandom | xxd | sort > /dev/null)
