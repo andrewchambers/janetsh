@@ -1,6 +1,7 @@
 image: debian/stable
 packages:
   - expect
+  - curl
 sources:
   - https://github.com/andrewchambers/janetsh
 tasks:
