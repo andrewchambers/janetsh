@@ -6,7 +6,7 @@ all:
 
 .PHONY: install
 install:
-	./support/do -cx install
+	./support/do -c install
 
 .PHONY: clean
 clean:

@@ -3,6 +3,7 @@
 set -eu
 
 scriptdir="$( cd "$( dirname "$0" )" && pwd )"
+to=$(readlink -f ./support/timeout)
 
 t="$(readlink -f $1)"
 run="$t"
@@ -17,7 +18,7 @@ workingdir="$(mktemp -d)"
 cd "$workingdir"
 
 set +e
-timeout 60 "$run"
+$to 60 "$run"
 rc="$?"
 set -e
 

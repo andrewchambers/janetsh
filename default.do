@@ -10,15 +10,16 @@ out="$3"
 # check we are in the right place.
 test -d ./support/
 
-shlib_csrc="$(echo shlib/*.c)"
-shlib_obj="$(echo "$shlib_csrc" | sed 's/\.c/\.o/g')"
+shlib_csrcs="$(echo shlib/*.c)"
+shlib_chdrs="$(echo shlib/*.h)"
+shlib_objs="$(echo "$shlib_csrcs" | sed 's/\.c/\.o/g')"
 
 case $target in
   all)
     redo-ifchange shlib.so
     ;;
   clean)
-    rm -f shlib.so $shlib_obj ./shlib/*.deps
+    rm -f shlib.so $shlib_objs ./shlib/*.deps
     ;;
   install)
     redo-ifchange all
@@ -36,15 +37,12 @@ case $target in
     ;;
   shlib/*.o)
     cfile=shlib/$(basename $target .o).c
-    redo-ifchange $cfile
-    $CC -fPIC $JANET_HEADER_CFLAGS $CFLAGS -MMD -MF $cfile.deps -c -o $out $cfile
-    redo-ifchange $cfile
-    read DEPS < $cfile.deps
-    redo-ifchange ${DEPS#*:}
+    redo-ifchange $cfile $shlib_chdrs
+    $CC -fPIC $JANET_HEADER_CFLAGS $CFLAGS -c -o $out $cfile
     ;;
   shlib.so)
-    redo-ifchange $shlib_obj
-    $CC -shared $LDFLAGS $shlib_obj -o $out
+    redo-ifchange $shlib_objs
+    $CC -shared $LDFLAGS $shlib_objs -o $out
     ;;
   *)
     echo "don't know how to build $target"

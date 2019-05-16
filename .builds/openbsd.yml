@@ -4,6 +4,7 @@ packages:
   - curl
   - meson
   - ninja
+  - coreutils
 sources:
   - https://github.com/andrewchambers/janetsh
 tasks:

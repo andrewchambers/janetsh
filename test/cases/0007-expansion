@@ -1,6 +1,9 @@
 #! /usr/bin/env janetsh
 (import sh)
 
+# FIXME use an assert macro that
+# prints what we wanted and what we got.
+
 (defn e [s] (first (sh/expand s)))
 
 (when (not= (e "$PWD") (os/cwd))

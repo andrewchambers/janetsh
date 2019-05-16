@@ -32,4 +32,4 @@ The absolute path to the test case being run, .i.e. realpath ./case/$t
 
 Tests can rely on the following dependencies in $PATH
 
-janet, posix sh, timeout, posix cli tools, expect.
+janet, posix sh, timeout/gtimeout, posix cli tools, expect.

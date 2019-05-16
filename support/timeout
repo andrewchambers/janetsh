@@ -1,0 +1,16 @@
+#! /bin/sh
+
+set -eu
+
+if timeout 1 true 2> /dev/null
+then
+  to="timeout"
+elif gtimeout 1 true 2> /dev/null
+then
+  to="gtimeout"
+else
+  echo "timeout command missing."
+  exit 1
+fi
+
+exec $to $@
