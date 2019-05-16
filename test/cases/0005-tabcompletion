@@ -6,7 +6,7 @@ mkdir foo
 touch ./foo/a.txt
 touch ./foo/b.txt
 
-janetsh=$(realpath $(which janetsh))
+janetsh=$(readlink -f $(which janetsh))
 
 
 echo "TODO SKIPPING TEST"

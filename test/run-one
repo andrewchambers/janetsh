@@ -4,7 +4,7 @@ set -eu
 
 scriptdir="$( cd "$( dirname "$0" )" && pwd )"
 
-t="$(realpath $1)"
+t="$(readlink -f $1)"
 run="$t"
 if test -d "$t"
 then

@@ -1,0 +1,12 @@
+image: openbsd/6.5
+packages:
+  - expect
+  - curl
+  - meson
+  - ninja
+sources:
+  - https://github.com/andrewchambers/janetsh
+tasks:
+  - build: |
+      cd janetsh
+      ./support/ci.sh

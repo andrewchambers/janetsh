@@ -5,7 +5,7 @@ set -uex
 janetver="dd1a199ebdd200231aeec96906d4eddd24f0321e"
 janeturl="https://github.com/janet-lang/janet/archive/${janetver}.tar.gz"
 mkdir -p ci_builds
-prefix="$(realpath ./ci_builds)/installed"
+prefix="$(readlink -f ./ci_builds)/installed"
 mkdir -p "$prefix"
 cd ci_builds
 curl "$janeturl" -L -o ./janet.tar.gz
@@ -15,7 +15,7 @@ meson . meson --prefix="$prefix"
 cd meson
 ninja install
 cd ../../../
-./configure --prefix="$prefix" --janet-header-cflags="-I$(realpath ./ci_builds/janet-${janetver}/src/include)"
+./configure --prefix="$prefix" --janet-header-cflags="-I$(readlink -f ./ci_builds/janet-${janetver}/src/include)"
 make clean
 make install
 export PATH="$prefix/bin:$PATH"
