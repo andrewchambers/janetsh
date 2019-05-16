@@ -51,7 +51,6 @@
   (when initialized
     (break))
 
-  (set is-interactive (isatty STDIN_FILENO))
   (set jobs @[])
   (set pid2proc @{})
   
@@ -60,9 +59,13 @@
   (register-unsafe-child-array unsafe-child-array)
   (enable-cleanup-signals)
 
-  (if (and is-interactive (not is-subshell) (= (tcgetpgrp STDIN_FILENO) (getpgrp)))
-    (set-interactive-signal-handlers)
-    (set-noninteractive-signal-handlers))
+  (if (and (isatty STDIN_FILENO) (not is-subshell) (= (tcgetpgrp STDIN_FILENO) (getpgrp)))
+    (do 
+      (set is-interactive true)
+      (set-interactive-signal-handlers))
+    (do
+      (set is-interactive false)
+      (set-noninteractive-signal-handlers)))
   (set initialized true)
   nil)
 
@@ -148,7 +151,7 @@
   [j]
   (each p (j :procs)
     (when (not (p :exit-code))
-      (put p :exit-code 127))))
+      (put p :exit-code 129)))) # POSIX requires >128
 
 (defn wait-for-job
   [j]
@@ -219,7 +222,7 @@
 (defn make-job-fg
   [j]
   (when (not is-interactive)
-    (error "cannot move job to foreground in non-interactive."))
+    (error "cannot move job to foreground in non-interactive mode."))
   (set shell-tmodes (tcgetattr STDIN_FILENO))
   (when (j :tmodes)
     (tcsetattr STDIN_FILENO TCSADRAIN (j :tmodes)))
@@ -314,7 +317,7 @@
           (var pid (fork))
           
           (when (zero? pid)
-            (try  # This try/catch prevents a child from ever starting job control again after an error.
+            (try # Prevent a child from ever returning after an error.
               (do
                 (set pid (getpid))
                 
@@ -522,12 +525,12 @@
   (if-let [builtin (parse-builtin forms)]
     builtin
     (let [[j fg] (parse-job ;forms)]
+      (when (not fg)
+        (error "$? does not support background jobs"))
     ~(do
       (let [j ,j]
         (,launch-job j ,fg)
-        (if ,fg
-          (,job-exit-code j)
-          j))))))
+        (,job-exit-code j))))))
 
 (defmacro $??
   [& forms]

@@ -1,0 +1,23 @@
+#! /usr/bin/env janetsh
+
+(import sh)
+
+(sh/$ true)
+
+(try (do (sh/$ false) (error "fail") ) ([e] nil))
+
+(when (not= (sh/$$ echo -n hello) "hello")
+  (error "fail"))
+
+(when (not= (sh/$$_ echo hello) "hello")
+  (error "fail"))
+
+(when (not= (sh/$? sh -c "exit 3") 3)
+  (error "fail"))
+
+(when (not (sh/$?? true))
+  (error "fail"))
+
+(when (sh/$?? false)
+  (error "fail"))
+
