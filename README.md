@@ -4,6 +4,8 @@
 
 [Mailing list](https://lists.sr.ht/~ach/janetsh)
 
+[CI])https://builds.sr.ht/~ach/janetsh)
+
 
 A new system shell that uses the [Janet](https://janet-lang.org/) programming language
 for high level scripting while also supporting the things we love about sh.
