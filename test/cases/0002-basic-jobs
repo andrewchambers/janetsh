@@ -21,3 +21,8 @@
 (when (sh/$?? false)
   (error "fail"))
 
+(def j1 (sh/$ sleep "0.1" &))
+(def j2 (sh/$ sleep "120" &))
+(sh/wait-for-job j1)
+(sh/terminate-all-jobs)
+(sh/wait-for-job j2)
