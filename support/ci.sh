@@ -15,5 +15,6 @@ cd ../..
 ./configure --prefix="$(realpath ./.builds/janetsh)" --janet-header-cflags="-I$(realpath ./.builds/janet-${janetver}/src/include)"
 make clean
 make install
-export PATH="$PATH:$(realpath ./.builds/janet-${janetver}/build):$(realpath ./.builds/janetsh/bin)"
+export PATH="$PATH:$(realpath ./.builds/janet-${janetver}/build)"
+export PATH="$PATH:$(realpath ./.builds/janetsh/bin)"
 ./test/runner
