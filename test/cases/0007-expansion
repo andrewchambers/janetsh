@@ -9,6 +9,9 @@
 (when (not= (e "$PWD") (os/cwd))
   (error "fail1"))
 
+(when (not= (e "X${PWD}X") (string "X" (os/cwd) "X"))
+  (error "fail1"))
+
 (when (not= (e "~") (os/getenv "HOME"))
   (error "fail2"))
 

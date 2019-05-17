@@ -438,7 +438,9 @@
 (def- expand-parser (peg/compile
   ~{
     :env-esc (replace (<- "$$") "$")
-    :env-seg (* "$" (replace (<- (some (+ "_" (range "az") (range "AZ")))) ,expand-getenv)) 
+    :env-seg (* "$" (replace
+                      (+ (* "{" (<- (some (* (not "}") 1)) ) "}" )
+                         (<- (some (+ "_" (range "az") (range "AZ"))))) ,expand-getenv))
     :lit-seg (<- (some (* (not "$") 1)))
     :main (* (? (replace (<- "~/") ,tildhome)) (any (choice :env-esc :env-seg :lit-seg)))
   }))
