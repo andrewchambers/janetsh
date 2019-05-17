@@ -8,6 +8,7 @@
 (var *rc-file* "~/.janetsh.rc")
 (var *hist-file* nil)
 (var *script* nil)
+(var *parens* false)
 (var *handleopts* true)
 
 (defn- help-handler
@@ -18,6 +19,7 @@
   -h | --help : Show this help and exit.
   -norc : Don't load the default rc file.
   -rc path : Use an alternative rc file.
+  -parens : Don't add implicit parens to interactive terminal.
   -- : Stop handling options`)
   (os/exit 1)
   1)
@@ -26,9 +28,10 @@
 (def handlers :private
   {"-h"     help-handler
    "--help" help-handler
-   "--"    (fn [&] (set *handleopts* false) 1)
-   "-norc" (fn [&] (set *rc-file* nil) 1)
-   "-rc"   (fn [i &] (set *rc-file* (get process/args (+ i 1))) 2)})
+   "--"     (fn [&] (set *handleopts* false) 1)
+   "-norc"  (fn [&] (set *rc-file* nil) 1)
+   "-rc"    (fn [i &] (set *rc-file* (get process/args (+ i 1))) 2)
+   "-parens" (fn [&] (set *parens* true) 1)})
 
 (defn- dohandler [n i &]
   (def h (get handlers n))
@@ -77,13 +80,13 @@
     (buffer/push-string buf ln "\n")
     buf))
 
-(defn want-implicit [buf p]
-  (and (> (length buf) 1) (empty? (parser/state p)) (not= (buf 0) 40)))
+(defn- want-implicit-parens [buf p]
+  (and (not *parens*) (> (length buf) 1) (empty? (parser/state p)) (not= (buf 0) 40)))
 
 (defn getchunk [buf p]
   (sh/update-all-jobs-status)
   (when (getln (*get-prompt* p) buf)
-    (when (want-implicit buf p)
+    (when (want-implicit-parens buf p)
       (let [line (string buf)]
         (buffer/clear buf)
         (buffer/format buf "(sh/$? %s)\n" line)))
