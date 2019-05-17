@@ -5,8 +5,46 @@
 
 (sh/init)
 
-(var rc-file (first (sh/expand "~/.janetsh.rc")))
+(var *rc-file* "~/.janetsh.rc")
 (var *hist-file* nil)
+(var *script* nil)
+(var *handleopts* true)
+
+(defn- help-handler
+  [&]
+  (print "usage: janetsh [options] [script]")
+  (print
+  `Options are:
+  -h | --help : Show this help and exit.
+  -norc : Don't load the default rc file.
+  -rc path : Use an alternative rc file.
+  -- : Stop handling options`)
+  (os/exit 1)
+  1)
+
+# Option handlers
+(def handlers :private
+  {"-h"     help-handler
+   "--help" help-handler
+   "--"    (fn [&] (set *handleopts* false) 1)
+   "-norc" (fn [&] (set *rc-file* nil) 1)
+   "-rc"   (fn [i &] (set *rc-file* (get process/args (+ i 1))) 2)})
+
+(defn- dohandler [n i &]
+  (def h (get handlers n))
+  (if h (h i) (do (print "unknown option -" n) ((get handlers "-h")))))
+
+# Process arguments
+(var i 2)
+(def lenargs (length process/args))
+(while (< i lenargs)
+  (def arg (get process/args i))
+  (if (and *handleopts* (= "-" (string/slice arg 0 1)))
+    (+= i (dohandler arg i))
+    (if *script*
+      (error "only one script argument is allowed.")
+      (do (set *script* arg) (+= i 1)))))
+
 
 (var *get-prompt*
   (fn get-prompt [p]
@@ -68,9 +106,11 @@
 
 (defn janetsh-repl
   []
-  (when (os/stat rc-file)
-    # FIXME - slurp loses file name.
-    (eval-string (slurp rc-file)))
+  (when *rc-file*
+    (var rc-file (first (sh/expand *rc-file*)))
+      (when (os/stat rc-file)
+        # FIXME - slurp loses file name.
+        (eval-string (slurp rc-file))))
   
   (var hist-file nil)
   # Shell expand the hist file for the user.
@@ -90,10 +130,9 @@
     (shlib/ln/history-save hist-file)))
 
 (set run-func
-  (cond
-    (= (length process/args) 2) janetsh-repl
-    (= (length process/args) 3) (fn [] (import* (get process/args 2) :prefix "" :exit true))
-    (error "expected 0 or 1 arguments")))
+  (if *script*
+    (fn [] (import* *script* :prefix "" :exit true))
+    janetsh-repl))
 
 (def user-fiber (fiber/new run-func :e))
 (fiber/setenv user-fiber user-env)
