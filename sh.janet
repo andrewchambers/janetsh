@@ -473,13 +473,19 @@
             (= (first f) 'quasiquote)
             (= (length f) 2)
             (= (type (f 1)) :symbol))
-        (expand (string "~" (f 1)))
+        (tuple (fn [] (expand (string "~" (f 1)))))
         f)
     :keyword
-      (expand (string f))
+      (tuple (fn [] (expand (string f))))
     :symbol
-      (expand (string f))
-    @[(string f)]))
+      (tuple (fn [] (expand (string f))))
+    :number
+      (string f)
+    :boolean
+      (string f)
+    :string
+      f
+    (error (string "unsupported shell argument type: " (type f)))))
 
 (defn- arg-symbol?
   [f]
@@ -496,7 +502,7 @@
   [f]
   (when-let [bi (first f)]
     (cond
-      (= 'cd bi) ~(,os/cd ; (,flatten (,(fn [] (form-to-arg (f 1))))))
+      (= 'cd bi) ~(,os/cd ; (,flatten ,(form-to-arg (f 1))))
       (= 'clear bi) (tuple clear)
       nil)))
   
@@ -525,7 +531,7 @@
                 (if (redir 2)
                   (array/push (proc :redirs) redir)
                   (do (set pending-redir redir) (set state :redir)))
-                (array/push (proc :args) (tuple (fn [] (form-to-arg f))))))))
+                (array/push (proc :args) (form-to-arg f))))))
       :redir (do
                (put pending-redir 2 (string f))
                (array/push (proc :redirs) pending-redir)

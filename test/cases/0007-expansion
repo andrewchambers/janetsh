@@ -19,7 +19,7 @@
             (string (os/getenv "HOME") "/~/$" (os/cwd) "/foo"))
   (error "fail3"))
 
-# Test that expansion happens at runtime
+# Test that job expansion happens at runtime
 (defn pwd [] (sh/$$_ echo $PWD))
 (var start-dir (os/cwd))
 (when (not= (pwd) (os/cwd))
@@ -28,3 +28,4 @@
 (when (not= (pwd) (os/cwd))
   (error "fail5"))
 (os/cd start-dir)
+
