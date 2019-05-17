@@ -5,11 +5,13 @@
 
 (sh/init)
 
+(var *sysrc-file* "/etc/janetsh.rc")
 (var *rc-file* "~/.janetsh.rc")
 (var *hist-file* nil)
 (var *script* nil)
 (var *parens* false)
 (var *handleopts* true)
+
 
 (defn- help-handler
   [&]
@@ -19,6 +21,8 @@
   -h | --help : Show this help and exit.
   -norc : Don't load the default rc file.
   -rc path : Use an alternative rc file.
+  -nosysrc : Don't load the system rc file.
+  -sysrc path : Use an alternative system rc file.
   -parens : Don't add implicit parens to interactive terminal.
   -- : Stop handling options`)
   (os/exit 1)
@@ -31,6 +35,8 @@
    "--"     (fn [&] (set *handleopts* false) 1)
    "-norc"  (fn [&] (set *rc-file* nil) 1)
    "-rc"    (fn [i &] (set *rc-file* (get process/args (+ i 1))) 2)
+   "-nosysrc"  (fn [&] (set *sysrc-file* nil) 1)
+   "-sysrc"    (fn [i &] (set *sysrc-file* (get process/args (+ i 1))) 2)
    "-parens" (fn [&] (set *parens* true) 1)})
 
 (defn- dohandler [n i &]
@@ -47,7 +53,6 @@
     (if *script*
       (error "only one script argument is allowed.")
       (do (set *script* arg) (+= i 1)))))
-
 
 (var *get-prompt*
   (fn get-prompt [p]
@@ -104,15 +109,19 @@
 (def do-lines sh/do-lines)
 (def out-lines sh/out-lines)
 
-(var run-func nil)
-(def user-env (fiber/getenv (fiber/current)))
+(def- user-env (fiber/getenv (fiber/current)))
 
-(defn janetsh-repl
+
+(defn- janetsh-repl
   []
   (when *rc-file*
     (var rc-file (first (sh/expand *rc-file*)))
       (when (os/stat rc-file)
         # FIXME - slurp loses file name.
+        # We can we manually extract
+        # config vars and use regular import
+        # to allow users to update config
+        # bindings?
         (eval-string (slurp rc-file))))
   
   (var hist-file nil)
@@ -132,15 +141,21 @@
   (when hist-file
     (shlib/ln/history-save hist-file)))
 
-(set run-func
-  (if *script*
-    (fn [] (import* *script* :prefix "" :exit true))
-    janetsh-repl))
 
-(def user-fiber (fiber/new run-func :e))
+(defn- run-func
+  []
+  (when *sysrc-file*
+    (var rc-file (first (sh/expand *sysrc-file*)))
+    (when (os/stat rc-file)
+      (import* rc-file :prefix "" :exit true)))
+    
+    (if *script*
+      (import* *script* :prefix "" :exit true)
+      (janetsh-repl)))
+
+(def- user-fiber (fiber/new run-func :e))
 (fiber/setenv user-fiber user-env)
-(def fiber-result (resume user-fiber))
-
+(def- fiber-result (resume user-fiber))
 (sh/terminate-all-jobs)
 (sh/deinit)
 

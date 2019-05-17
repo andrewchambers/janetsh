@@ -107,11 +107,21 @@ $ (try
 Hopefully in the future this sparse reference set will become more polished, but for now
 the following snippets may help advanced users play with the shell in it's current state.
 
-## RC file
+## RC files
 
-Janetsh runs the script ```~/.janetsh.rc``` at startup in interactive mode, which can be used to provide
-extra functions, change the prompt function ```*get-prompt*``` and change the completion function
-```*get-completion*```.
+Janetsh runs a user rc script ```~/.janetsh.rc``` at startup when in interactive mode. This
+file can changed or disabled via command line flags.
+
+Janetsh runs ```/etc/janetsh.rc``` on any run if it exists. This file can be changed or disabled via
+command line flags.
+
+## Custom prompts
+
+Users can set a custom prompt like so:
+```
+(set *get-prompt* (fn [p] "$ "))
+```
+p is a janet standard library parser, which can be used to find the current repl nesting level.
 
 ## History file
 
