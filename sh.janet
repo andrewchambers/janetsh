@@ -312,7 +312,20 @@
             post-fork [pid]
             (when (not (j :pgid))
               (put j :pgid pid))
-            (setpgid pid (j :pgid))
+            (try
+              (setpgid pid (j :pgid))
+            ([e]
+              # EACCES If the parent is so slow
+              # the child has run execv, we will
+              # get this error. If we get this
+              # error in the parent,
+              # it means the child itself
+              # has done setpgid, so it is safe to
+              # ignore. We should never get
+              # this error in the child according to
+              # the conditions in the man pages.
+              (when (not= (dyn :errno) EACCES)
+                (error e))))
             (put proc :pid pid)
             (put pid2proc pid proc)
             (when (and is-interactive in-foreground)
@@ -348,6 +361,7 @@
             ([e] (os/exit 1))))
 
           (post-fork pid)
+
           (when (not= infd STDIN_FILENO)
             (close infd))
           (when (not= outfd STDOUT_FILENO)
