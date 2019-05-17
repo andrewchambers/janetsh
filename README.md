@@ -76,9 +76,14 @@ $ echo (reduce + 0 [1 2 3])
 $ (string/ascii-upper ($$ echo command string capture))
 "COMMAND STRING CAPTURE\n"
 
-$ (if (= 0 ($? touch /tmp/test.txt)) (print "success"))
-success
-nil
+$ ($$_ echo trimmed capture)
+"trimmed capture"
+
+$ (if (= 0 ($? touch /tmp/test.txt)) "success")
+"success"
+
+$ (if ($?? touch /tmp/test.txt) "shorthand success")
+"shorthand success"
 ```
 
 ## Subshells
