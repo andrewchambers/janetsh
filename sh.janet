@@ -473,13 +473,13 @@
             (= (first f) 'quasiquote)
             (= (length f) 2)
             (= (type (f 1)) :symbol))
-        (tuple expand (string "~" (f 1)))
+        (expand (string "~" (f 1)))
         f)
     :keyword
-      (tuple expand (string f))
+      (expand (string f))
     :symbol
-      (tuple expand (string f))
-    (string f)))
+      (expand (string f))
+    @[(string f)]))
 
 (defn- arg-symbol?
   [f]
@@ -496,7 +496,7 @@
   [f]
   (when-let [bi (first f)]
     (cond
-      (= 'cd bi) (tuple os/cd ;(flatten (map form-to-arg (tuple/slice f 1))))
+      (= 'cd bi) ~(,os/cd ; (,flatten (,(fn [] (form-to-arg (f 1))))))
       (= 'clear bi) (tuple clear)
       nil)))
   
@@ -525,7 +525,7 @@
                 (if (redir 2)
                   (array/push (proc :redirs) redir)
                   (do (set pending-redir redir) (set state :redir)))
-                (array/push (proc :args) (form-to-arg f))))))
+                (array/push (proc :args) (tuple (fn [] (form-to-arg f))))))))
       :redir (do
                (put pending-redir 2 (string f))
                (array/push (proc :redirs) pending-redir)
@@ -568,8 +568,8 @@
               (error rc)))
           j))))))
 
-(defmacro $?
-  [& forms]
+(defn- fn-$?
+  [forms]
   (if-let [builtin (parse-builtin forms)]
     builtin
     (let [[j fg] (parse-job ;forms)]
@@ -580,16 +580,17 @@
           (,job-exit-code j)
           j))))))
 
+(defmacro $?
+  [& forms]
+  (fn-$? forms))
+
 (defmacro $??
   [& forms]
-  # This is probably my inexperience with macros
-  # I'm not sure we should be calling macex. Make this
-  # nicer...
-  (let [rc-forms ($? ;forms)]
+  (let [rc-forms (fn-$? forms)]
     ~(= 0 ,rc-forms)))
 
-(defmacro $$
-  [& forms]
+(defn- fn-$$
+  [forms]
   (if-let [builtin (parse-builtin forms)]
     builtin
     (let [[j fg] (parse-job ;forms)]
@@ -597,10 +598,14 @@
         (error "$$ does not support background jobs"))
       ~(,job-output ,j))))
 
+(defmacro $$
+  [& forms]
+  (fn-$$ forms))
+
 (defmacro $$_
   [& forms]
-  (let [out-forms ($$ ;forms)]
-    ~(string/trimr ,out-forms)))
+  (let [out-forms (fn-$$ forms)]
+    ~(,string/trimr ,out-forms)))
 
 # References
 # [1] https://www.gnu.org/software/libc/manual/html_node/Implementing-a-Shell.html
