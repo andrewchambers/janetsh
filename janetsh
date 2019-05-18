@@ -6,7 +6,7 @@
 (sh/init)
 
 (var *sysrc-file* "/etc/janetsh.rc")
-(var *rc-file* "~/.janetsh.rc")
+(var *rc-file* (string (os/getenv "HOME") "/.janetsh.rc"))
 (var *hist-file* nil)
 (var *script* nil)
 (var *parens* false)
@@ -135,23 +135,17 @@
   []
   # Load user rc file before
   (when *rc-file*
-    (var rc-file (first (sh/expand *rc-file*)))
-      (when (os/stat rc-file)
-        # FIXME - slurp loses file name.
-        # We can we manually extract
-        # config vars and use regular import
-        # to allow users to update config
-        # bindings?
-        (eval-string (slurp rc-file))))
+    (when (os/stat *rc-file*)
+      # FIXME: filename in errors.
+      (eval-string (slurp *rc-file*))))
   (*janetsh-repl*))
-
 
 (defn- run-func
   []
   (when *sysrc-file*
-    (var rc-file (first (sh/expand *sysrc-file*)))
-    (when (os/stat rc-file)
-      (import* rc-file :prefix "" :exit true)))
+    (when (os/stat *sysrc-file*)
+      # FIXME: filename in errors.
+      (eval-string (slurp *sysrc-file*))))
     
     (if *script*
       (import* *script* :prefix "" :exit true)

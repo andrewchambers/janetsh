@@ -146,7 +146,7 @@ By default janetsh does not store any history to avoid accidental information le
 To enable history add the following line to your janet rc file:
 
 ```
-(set *hist-file* "~/.janetsh.hist")
+(set *hist-file* (first (sh/expand "~/.janetsh.hist")))
 ```
 
 ## Job control
