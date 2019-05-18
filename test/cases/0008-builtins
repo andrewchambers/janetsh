@@ -1,0 +1,6 @@
+#! /usr/bin/env janetsh
+
+(import sh)
+
+(when (not (sh/$?? cd ./.)) (error "fail"))
+(when (sh/$?? cd ./not-exists :2>/dev/null) (error "fail"))

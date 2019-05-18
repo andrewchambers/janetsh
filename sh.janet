@@ -257,22 +257,35 @@
         "<"  (open srcfd (bor O_RDONLY) 0)
         (error "unhandled redirect"))))
       (dup2 srcfd sinkfd))
-  (if (function? (first args))
-    (do
-      # This is a subshell inside a job.
-      # Clear jobs, they aren't the subshell's jobs.
-      # The subshells should be able to run jobs
-      # of it's own if it wants to.
-      (init true)
+  
+  (defn- run-subshell-proc [f args]
+    # This is a subshell inside a job.
+    # Clear jobs, they aren't the subshell's jobs.
+    # The subshells should be able to run jobs
+    # of it's own if it wants to.
+    (init true)
+    
+    (var rc 0)
+    (try
+      (f args)
+      ([e]
+        (set rc 1)
+        (file/write stderr (string "error: " e "\n"))))
+    
+    (file/flush stdout)
+    (file/flush stderr)
+    (terminate-all-jobs)
+    
+    (os/exit rc))
 
-      ((first args) ;(tuple/slice args 1))
-      (file/flush stdout)
-      # Terminate any jobs the subshell started.
-      (terminate-all-jobs)
-      (os/exit 0))
-    (do
-      (exec ;(map string (flatten args)))
-      (error "exec failed!"))))
+  (var entry-point (first args))
+  (cond
+    (function? entry-point)
+      (run-subshell-proc entry-point (tuple/slice args 1))
+    (table? entry-point)
+      (run-subshell-proc (fn [eargs] (:post-fork entry-point eargs)) (tuple/slice args 1))
+    (exec ;(map string args))))
+    
 
 (defn launch-job
   [j in-foreground]
@@ -304,6 +317,9 @@
             (do
               (set pipes nil)
               (set outfd STDOUT_FILENO)))
+
+          (when (table? (first (proc :args)))
+            (:pre-fork (first (proc :args)) (tuple/slice (proc :args) 1)))
 
           # As mentioned in [2] we must set the right pgid
           # in both the parent and the child to avoid a race
@@ -347,9 +363,8 @@
                   (close (pipes 0)))
 
                 # The child doesn't want our signal handlers
-                # we need to reset them.
-                (reset-signal-handlers)
-                (force-enable-cleanup-signals)
+                # or any other stuff like job control.
+                (deinit)
 
                 (def redirs (array/concat @[
                     @[STDIN_FILENO  "<"  infd]
@@ -466,6 +481,8 @@
   (glob (string ;(peg/match expand-parser s))))
 
 (defn- form-to-arg
+  "Convert a form to a form that does
+   shell expanded at runtime."
   [f]
   (match (type f)
     :tuple
@@ -485,6 +502,8 @@
       (string f)
     :string
       f
+    :nil
+      "nil"
     (error (string "unsupported shell argument type: " (type f)))))
 
 (defn- arg-symbol?
@@ -498,14 +517,44 @@
   []
   (ln/clear-screen))
 
-(defn parse-builtin
-  [f]
-  (when-let [bi (first f)]
-    (cond
-      (= 'cd bi) ~(,os/cd ; (,flatten ,(form-to-arg (f 1))))
-      (= 'clear bi) (tuple clear)
-      nil)))
-  
+(defn- new-cd-builtin
+  []
+  @{
+    :pre-fork
+      (fn builtin-cd
+        [self args]
+        (try
+          (os/cd ;args)
+          ([e] (put self :error e))))
+    :post-fork
+      (fn builtin-cd
+        [self args]
+        (when (self :error)
+          (error (self :error))))
+    :error nil 
+  })
+
+(defn- new-clear-builtin
+  []
+  @{
+    :pre-fork
+      (fn builtin-clear [self args] nil)
+    :post-fork
+      (fn builtin-clear
+        [self args]
+        (file/write stdout "\x1b[H\x1b[2J"))
+  })
+
+
+(defn- replace-builtins
+  [args]
+  (match (first args)
+    "cd"
+      (put args 0 (new-cd-builtin))
+    "clear"
+      (put args 0 (new-clear-builtin))
+    args))
+
 (defn parse-job
   [& forms]
   (var state :proc)
@@ -544,6 +593,10 @@
       (array/push (job :procs) proc))
   (when (empty? (job :procs))
     (error "empty shell job"))
+  
+  (each proc (job :procs)
+    (put proc :args (tuple replace-builtins (tuple flatten (proc :args)))))
+
   [job fg])
 
 (defn do-lines
@@ -562,29 +615,25 @@
 
 (defmacro $
   [& forms]
-  (if-let [builtin (parse-builtin forms)]
-    builtin
-    (let [[j fg] (parse-job ;forms)]
-    ~(do
-      (let [j ,j]
-        (,launch-job j ,fg)
-        (if ,fg
-          (let [rc (,job-exit-code j)]
-            (when (not= 0 rc)
-              (error rc)))
-          j))))))
+  (let [[j fg] (parse-job ;forms)]
+  ~(do
+    (let [j ,j]
+      (,launch-job j ,fg)
+      (if ,fg
+        (let [rc (,job-exit-code j)]
+          (when (not= 0 rc)
+            (error rc)))
+        j)))))
 
 (defn- fn-$?
   [forms]
-  (if-let [builtin (parse-builtin forms)]
-    builtin
     (let [[j fg] (parse-job ;forms)]
     ~(do
       (let [j ,j]
         (,launch-job j ,fg)
         (if ,fg
           (,job-exit-code j)
-          j))))))
+          j)))))
 
 (defmacro $?
   [& forms]
@@ -597,12 +646,10 @@
 
 (defn- fn-$$
   [forms]
-  (if-let [builtin (parse-builtin forms)]
-    builtin
     (let [[j fg] (parse-job ;forms)]
       (when (not fg)
         (error "$$ does not support background jobs"))
-      ~(,job-output ,j))))
+      ~(,job-output ,j)))
 
 (defmacro $$
   [& forms]
