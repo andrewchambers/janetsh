@@ -161,6 +161,8 @@
 (fiber/setenv user-fiber user-env)
 (def- fiber-result (resume user-fiber))
 
+# Prune jobs so less stale stuff is
+# handled by our cleanup handlers.
 (sh/prune-complete-jobs)
 
 (if (= (fiber/status user-fiber) :error)
