@@ -58,8 +58,6 @@ then
   fi
 fi
 
-CFLAGS="${CFLAGS} ${JANET_HEADER_CFLAGS}"
-
 echo "writing config.inc"
 cat >config.inc <<EOF
 PREFIX="${prefix}"
