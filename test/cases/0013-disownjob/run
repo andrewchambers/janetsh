@@ -1,0 +1,12 @@
+#! /bin/sh
+set -eux
+
+janetsh $TEST_CASE/case.janet
+if test test -f success.txt
+then
+  exit 1
+fi
+while ! test -f success.txt
+do
+  sleep 0.1
+done
