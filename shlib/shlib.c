@@ -429,8 +429,8 @@ wait_children () {
 
 static void
 cleanup_children(void) {
-  signal_children(SIGCONT);
   signal_children(SIGTERM);
+  signal_children(SIGCONT);
   wait_children();
 }
 
