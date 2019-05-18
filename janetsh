@@ -55,12 +55,12 @@
       (do (set *script* arg) (+= i 1)))))
 
 (var *get-prompt*
-  (fn get-prompt [p]
+  (fn *get-prompt* [p]
     (string (os/cwd) " " (parser/state p) "$ ")))
 
 # Use a var so users can redefine this in rc file.
 (var *get-completion*
-  (fn get-completion
+  (fn *get-completion*
     [line add-completion]
     (var expand-idx 0)
     (def rline (string/reverse line))
@@ -76,7 +76,7 @@
             (let [choice-suffix (string/slice choice (length (first single-expansion)))]
               (add-completion (string line choice-suffix)))))))))
 
-(defn getln [prompt buf]
+(defn- getline [prompt buf]
   (defn get-completion [line lc]
     (*get-completion* line (partial shlib/ln/add-completion lc)))
   (when-let [ln (shlib/ln/get-line prompt get-completion)]
@@ -88,9 +88,9 @@
 (defn- want-implicit-parens [buf p]
   (and (not *parens*) (> (length buf) 1) (empty? (parser/state p)) (not= (buf 0) 40)))
 
-(defn getchunk [buf p]
+(defn- getchunk [buf p]
   (sh/update-all-jobs-status)
-  (when (getln (*get-prompt* p) buf)
+  (when (getline (*get-prompt* p) buf)
     (when (want-implicit-parens buf p)
       (let [line (string buf)]
         (buffer/clear buf)
@@ -99,7 +99,7 @@
 
 (setdyn :pretty-format "%.40p")
 
-# convenience bindings.
+# convenience bindings for our user-env.
 (def $?? :macro sh/$??)
 (def $$_ :macro sh/$$_)
 (def $$  :macro sh/$$)
@@ -111,9 +111,29 @@
 
 (def- user-env (fiber/getenv (fiber/current)))
 
+(var *janetsh-repl*
+  (fn *janetsh-repl*
+    []
+    (var hist-file nil)
+    # Shell expand the hist file for the user.
+    (when *hist-file*
+      (set hist-file (first (sh/expand *hist-file*))))
 
-(defn- janetsh-repl
+    (when hist-file
+      (shlib/ln/history-set-max-len 1024)
+      (shlib/ln/set-multiline true)
+      (try
+        (shlib/ln/history-load hist-file)
+        ([e] nil)))
+    
+    (repl getchunk nil user-env)
+    
+    (when hist-file
+      (shlib/ln/history-save hist-file))))
+
+(defn- run-interactive
   []
+  # Load user rc file before
   (when *rc-file*
     (var rc-file (first (sh/expand *rc-file*)))
       (when (os/stat rc-file)
@@ -123,23 +143,7 @@
         # to allow users to update config
         # bindings?
         (eval-string (slurp rc-file))))
-  
-  (var hist-file nil)
-  # Shell expand the hist file for the user.
-  (when *hist-file*
-    (set hist-file (first (sh/expand *hist-file*))))
-
-  (when hist-file
-    (shlib/ln/history-set-max-len 1024)
-    (shlib/ln/set-multiline true)
-    (try
-      (shlib/ln/history-load hist-file)
-      ([e] nil)))
-  
-  (repl getchunk nil user-env)
-  
-  (when hist-file
-    (shlib/ln/history-save hist-file)))
+  (*janetsh-repl*))
 
 
 (defn- run-func
@@ -151,7 +155,7 @@
     
     (if *script*
       (import* *script* :prefix "" :exit true)
-      (janetsh-repl)))
+      (run-interactive)))
 
 (def- user-fiber (fiber/new run-func :e))
 (fiber/setenv user-fiber user-env)

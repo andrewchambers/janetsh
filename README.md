@@ -128,6 +128,17 @@ Users can set a custom prompt like so:
 ```
 p is a janet standard library parser, which can be used to find the current repl nesting level.
 
+## Custom line completions
+
+Users can add set a custom line completion function:
+```
+(set *get-completion*
+  (fn *get-completion*
+    [line add-completion]
+      (add-completion (string line "your-completion"))
+      nil))
+```
+
 ## History file
 
 By default janetsh does not store any history to avoid accidental information leaks.
