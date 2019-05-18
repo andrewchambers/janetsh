@@ -170,6 +170,7 @@ $ (sh/make-job-fg (first sh/jobs))
 Ctrl+Z
 $ sleep 60 &
 $ (sh/terminate-all-jobs)
+$ (sh/disown-job (sh/$ sleep 60 &))
 ```
 
 # Installation

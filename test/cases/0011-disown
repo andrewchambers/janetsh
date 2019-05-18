@@ -1,0 +1,20 @@
+#! /usr/bin/env janetsh
+
+(import sh)
+
+(def j (sh/$ sleep 120 & ))
+(when (not= (sh/unsafe-child-cleanup-array 0) (((j :procs) 0) :pid))
+  (error "fail"))
+
+(when (not (j :cleanup))
+  (error "fail"))
+
+(sh/disown-job j)
+
+(when (not= (length sh/unsafe-child-cleanup-array) 0)
+  (error "fail"))
+
+(when (j :cleanup)
+  (error "fail"))
+
+(sh/terminate-job j)

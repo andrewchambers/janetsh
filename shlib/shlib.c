@@ -373,13 +373,13 @@ static Janet mask_cleanup_signals(int32_t argc, Janet *argv) {
 //
 // We should then should be able to *read* this table from
 // the signal handler to get a list of children to cleanup.
-static JanetArray *unsafe_child_array  = 0; 
+static JanetArray *unsafe_child_cleanup_array  = 0; 
 
-static Janet register_unsafe_child_array(int32_t argc, Janet *argv) {
+static Janet register_unsafe_child_cleanup_array(int32_t argc, Janet *argv) {
   janet_fixarity(argc, 1);
   // We could root the table, but something would be going horribly
   // wrong before this is needed.
-  unsafe_child_array = janet_getarray(argv, 0);
+  unsafe_child_cleanup_array = janet_getarray(argv, 0);
   return janet_wrap_nil();
 }
 
@@ -393,13 +393,13 @@ signal_children (int signal) {
   if (getpid() != pid_at_cleaup_registration)
     return;
 
-  if (!unsafe_child_array)
+  if (!unsafe_child_cleanup_array)
     return;
 
-  for (int i = 0; i < unsafe_child_array->count; i++) {
+  for (int i = 0; i < unsafe_child_cleanup_array->count; i++) {
     int status;
     
-    pid_t child = janet_unwrap_number(unsafe_child_array->data[i]);
+    pid_t child = janet_unwrap_number(unsafe_child_cleanup_array->data[i]);
     // Check if the child really is ours and if it is still alive.
     // This info may be stale so we double check here before sending
     // a signal.
@@ -416,12 +416,12 @@ signal_children (int signal) {
 
 static void
 wait_children () {
-  if (!unsafe_child_array)
+  if (!unsafe_child_cleanup_array)
     return;
 
-  for (int i = 0; i < unsafe_child_array->count; i++) {
+  for (int i = 0; i < unsafe_child_cleanup_array->count; i++) {
     int status;
-    pid_t child = janet_unwrap_number(unsafe_child_array->data[i]);
+    pid_t child = janet_unwrap_number(unsafe_child_cleanup_array->data[i]);
     // Can't do much when this fails.
     waitpid(child, &status, 0);
   }
@@ -538,7 +538,7 @@ static const JanetReg cfuns[] = {
     {"WIFCONTINUED", WIFCONTINUED_, NULL},
   
     // signal handlers
-    {"register-unsafe-child-array", register_unsafe_child_array, NULL},
+    {"register-unsafe-child-cleanup-array", register_unsafe_child_cleanup_array, NULL},
     {"mask-cleanup-signals", mask_cleanup_signals, NULL},
     {"reset-signal-handlers", reset_signal_handlers, NULL},
     {"set-interactive-signal-handlers", set_interactive_signal_handlers, NULL},

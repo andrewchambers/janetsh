@@ -20,14 +20,14 @@
 # Extremely unsafe table. Don't touch this unless
 # you know what you are doing.
 #
-# It holds the pid cleanup table for signals
-# and must only ever be updated after signals are disabled.
+# It holds the pid cleanup table for signals and an atexit
+# handler and must only ever be updated after signals are disabled.
 #
 # It is even a janet implementation detail that READING
 # a table doesn't modify it's structure, as such it is
 # better to not even read this table without cleanup
 # signals disabled...
-(var unsafe-child-array nil)
+(var unsafe-child-cleanup-array nil)
 
 # Reentrancy counter for shell signals...
 (var disable-cleanup-signals-count 0)
@@ -55,8 +55,8 @@
   (set pid2proc @{})
   
   (disable-cleanup-signals)
-  (set unsafe-child-array @[])
-  (register-unsafe-child-array unsafe-child-array)
+  (set unsafe-child-cleanup-array @[])
+  (register-unsafe-child-cleanup-array unsafe-child-cleanup-array)
   (enable-cleanup-signals)
   (register-atexit-cleanup)
 
@@ -79,21 +79,24 @@
   (force-enable-cleanup-signals))
 
 (defn- new-job []
+  # Don't manpulate job tables directly, instead
+  # use provided job management functions.
   @{
-    :procs @[]   # A list of processes in the pipeline.
-    :tmodes nil  # Saved terminal modes of the job if it was stopped.
-    :pgid nil    # Job process group id.
+    :procs @[]    # A list of processes in the pipeline.
+    :tmodes nil   # Saved terminal modes of the job if it was stopped.
+    :pgid nil     # Job process group id.
+    :cleanup true # Cleanup on job on exit.
    })
 
 (defn- new-proc []
   @{
-    :args @[]      # A list of arguments used to start the proc. 
-    :redirs @[]    # A list of 3 tuples. [fd|path ">"|"<"|">>" fd|path] 
-    :pid nil       # PID of process after it has been started.
-    :termsig nil   # Signal used to terminate job.
-    :exit-code nil # Exit code of the process when it has exited, or 127 on signal exit.
-    :stopped false # If the process has been stopped (Ctrl-Z).
-    :stopsig nil   # Signal that stopped the process.
+    :args @[]         # A list of arguments used to start the proc. 
+    :redirs @[]       # A list of 3 tuples. [fd|path ">"|"<"|">>" fd|path] 
+    :pid nil          # PID of process after it has been started.
+    :termsig nil      # Signal used to terminate job.
+    :exit-code nil    # Exit code of the process when it has exited, or 127 on signal exit.
+    :stopped false    # If the process has been stopped (Ctrl-Z).
+    :stopsig nil      # Signal that stopped the process.
    })
 
 (defn update-proc-status
@@ -214,22 +217,35 @@
   []
   (each j jobs (terminate-job j)))
 
+(defn- rebuild-unsafe-child-cleanup-array
+  []
+  (var new-unsafe-child-cleanup-array @[])
+  (disable-cleanup-signals)
+  (each j jobs
+    (when (j :cleanup)
+      (each p (j :procs)
+        (array/push new-unsafe-child-cleanup-array (p :pid)))))
+  (set unsafe-child-cleanup-array new-unsafe-child-cleanup-array)
+  (register-unsafe-child-cleanup-array unsafe-child-cleanup-array)
+  (enable-cleanup-signals))
+
 (defn prune-complete-jobs
   []
   (update-all-jobs-status)
   (set jobs (filter (complement job-complete?) jobs))
   (set pid2proc @{})
-  (var new-unsafe-child-array @[])
   
-  (disable-cleanup-signals)
+  (rebuild-unsafe-child-cleanup-array)
+
   (each j jobs
     (each p (j :procs)
-      (put pid2proc (p :pid) p)
-      (array/push new-unsafe-child-array (p :pid))))
-  (set unsafe-child-array new-unsafe-child-array)
-  (register-unsafe-child-array unsafe-child-array)
-  (enable-cleanup-signals)
+      (put pid2proc (p :pid) p)))
   jobs)
+
+(defn disown-job
+  [j]
+  (put j :cleanup false)
+  (rebuild-unsafe-child-cleanup-array))
 
 (defn make-job-fg
   [j]
@@ -292,7 +308,6 @@
       (run-subshell-proc (fn [eargs] (:post-fork entry-point eargs)) (tuple/slice args 1))
     (exec ;(map string args))))
     
-
 (defn launch-job
   [j in-foreground]
   (when (not initialized)
