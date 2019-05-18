@@ -26,6 +26,7 @@ for arg ; do
   --janet-header-cflags=*) JANET_HEADER_CFLAGS=${arg#*=} ;;
   CC=*) CC=${arg#*=} ;;
   CFLAGS=*) CFLAGS=${arg#*=} ;;
+  LDFLAGS=*) LDFLAGS=${arg#*=} ;;
   --help) usage ;;
   *) fail "unknown option '$arg'"
   esac
