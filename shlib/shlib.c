@@ -15,7 +15,7 @@
 #define panic_errno(NAME, e) \
   do { \
     janet_setdyn("errno", janet_wrap_integer(e));\
-    janet_panicf(NAME ": %s", strerror(e));\
+    janet_panicf(NAME ": %s (errno=%d)", strerror(e), e);\
   } while(0)
 
 static Janet jfork_(int32_t argc, Janet *argv) {
