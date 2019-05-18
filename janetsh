@@ -160,8 +160,8 @@
 (def- user-fiber (fiber/new run-func :e))
 (fiber/setenv user-fiber user-env)
 (def- fiber-result (resume user-fiber))
-(sh/terminate-all-jobs)
-(sh/deinit)
+
+(sh/prune-complete-jobs)
 
 (if (= (fiber/status user-fiber) :error)
  (do

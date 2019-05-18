@@ -346,6 +346,8 @@ static Janet reset_signal_handlers(int32_t argc, Janet *argv) {
      || (sigaction(SIGTSTP, &act, NULL) == -1)
      || (sigaction(SIGTTIN, &act, NULL) == -1)
      || (sigaction(SIGTTOU, &act, NULL) == -1)
+     || (sigaction(SIGHUP,  &act, NULL) == -1)
+     || (sigaction(SIGPIPE, &act, NULL) == -1)
      || (sigaction(SIGTERM, &act, NULL) == -1))
     janet_panic("signal_action: error");
   return janet_wrap_nil();
@@ -358,6 +360,7 @@ static Janet mask_cleanup_signals(int32_t argc, Janet *argv) {
   sigemptyset(&block_mask);
   sigaddset(&block_mask, SIGINT);
   sigaddset(&block_mask, SIGTERM);
+  sigaddset(&block_mask, SIGHUP);
   if (sigprocmask(action, &block_mask, NULL) == -1) 
     janet_panic("sigprocmask: error");
   return janet_wrap_nil();
@@ -380,40 +383,72 @@ static Janet register_unsafe_child_array(int32_t argc, Janet *argv) {
   return janet_wrap_nil();
 }
 
-static void
-sig_handler (int signum)
-{
-  switch (signum) {
-  case SIGINT:
-    // fallthrough
-  case SIGTERM:
-    // Go do the work.
-    break;
-  default:
-    return;
-  }
+static int cleanup_registered = 0;
+static int pid_at_cleaup_registration = 0;
 
-  // Cleanup children on sig term.
+static void
+signal_children (int signal) {
+  // After a fork (subshell), we shouldn't try to signal, unless
+  // the atexit cleanup has been re-registered.
+  if (getpid() != pid_at_cleaup_registration)
+    return;
+
+  if (!unsafe_child_array)
+    return;
+
   for (int i = 0; i < unsafe_child_array->count; i++) {
     int status;
     
     pid_t child = janet_unwrap_number(unsafe_child_array->data[i]);
     // Check if the child really is ours and if it is still alive.
     // This info may be stale so we double check here before sending
-    // a TERM signal.
+    // a signal.
     if (waitpid(child, &status, WNOHANG) == 0) {
       // This process was indeed our child.
-      // The zero return onfirms it is still alive
-      // so we can proceed to try and kill it.
+      // The zero return confirms it is still alive
 
-      // if the kill, or wait fails
+      // if the kill fails
       // there is not much we can do.
-      kill(child, SIGTERM);
-      waitpid(child, &status, 0);
+      kill(child, signal);
     }
   }
- 
+}
+
+static void
+wait_children () {
+  if (!unsafe_child_array)
+    return;
+
+  for (int i = 0; i < unsafe_child_array->count; i++) {
+    int status;
+    pid_t child = janet_unwrap_number(unsafe_child_array->data[i]);
+    // Can't do much when this fails.
+    waitpid(child, &status, 0);
+  }
+}
+
+static void
+cleanup_children(void) {
+  signal_children(SIGCONT);
+  signal_children(SIGTERM);
+  wait_children();
+}
+
+static void
+cleanup_sig_handler (int signum)
+{
   exit(1);
+}
+
+static Janet register_atexit_cleanup(int32_t argc, Janet *argv) {
+  janet_fixarity(argc, 0);
+  pid_at_cleaup_registration = getpid();
+  if (!cleanup_registered) {
+    atexit(cleanup_children);
+    cleanup_registered = 1;
+  }
+  
+  return janet_wrap_nil();
 }
 
 static Janet set_interactive_signal_handlers(int32_t argc, Janet *argv) {
@@ -427,16 +462,20 @@ static Janet set_interactive_signal_handlers(int32_t argc, Janet *argv) {
     || (sigaction(SIGQUIT, &act, NULL) == -1)
     || (sigaction(SIGTSTP, &act, NULL) == -1)
     || (sigaction(SIGTTIN, &act, NULL) == -1)
-    || (sigaction(SIGTTOU, &act, NULL) == -1))
+    || (sigaction(SIGTTOU, &act, NULL) == -1)
+    || (sigaction(SIGPIPE, &act, NULL) == -1))
     janet_panic("sigaction: error");
   
   sigset_t block_mask;
   sigemptyset(&block_mask);
-  memset(&act, 0, sizeof(act));
-  act.sa_handler = sig_handler;
+  sigaddset(&block_mask, SIGINT);
+  sigaddset(&block_mask, SIGTERM);
+  sigaddset(&block_mask, SIGHUP);
+  act.sa_handler = cleanup_sig_handler;
   act.sa_mask = block_mask;
 
-  if (sigaction(SIGTERM, &act, NULL) == -1)
+  if ( (sigaction(SIGTERM, &act, NULL) == -1)
+    || (sigaction(SIGHUP, &act, NULL) == -1))
     janet_panic("sigaction: error");
 
   return janet_wrap_nil();
@@ -447,20 +486,26 @@ static Janet set_noninteractive_signal_handlers(int32_t argc, Janet *argv) {
   janet_fixarity(argc, 0);
   reset_signal_handlers(argc, argv);
 
+  struct sigaction act;
+  memset(&act, 0, sizeof(act));
+  act.sa_handler = SIG_IGN;
+
+  if (sigaction(SIGPIPE, &act, NULL) == -1)
+    janet_panic("sigaction: error");
+  
   sigset_t block_mask;
   sigemptyset(&block_mask);
   sigaddset(&block_mask, SIGINT);
   sigaddset(&block_mask, SIGTERM);
-  struct sigaction act;
+  sigaddset(&block_mask, SIGHUP);
   memset(&act, 0, sizeof(act));
   
-  act.sa_handler = sig_handler;
+  act.sa_handler = cleanup_sig_handler;
   act.sa_mask = block_mask;
 
-  if (sigaction(SIGTERM, &act, NULL) == -1)
-    janet_panic("sigaction: error");
-
-  if (sigaction(SIGINT, &act, NULL) == -1)
+  if ( (sigaction(SIGTERM, &act, NULL) == -1)
+    || (sigaction(SIGINT, &act, NULL) == -1)
+    || (sigaction(SIGHUP, &act, NULL) == -1))
     janet_panic("sigaction: error");
 
   return janet_wrap_nil();
@@ -498,6 +543,7 @@ static const JanetReg cfuns[] = {
     {"reset-signal-handlers", reset_signal_handlers, NULL},
     {"set-interactive-signal-handlers", set_interactive_signal_handlers, NULL},
     {"set-noninteractive-signal-handlers", set_noninteractive_signal_handlers, NULL},
+    {"register-atexit-cleanup", register_atexit_cleanup, NULL},
     
     // Termios    
     {"tcgetattr", tcgetattr_, NULL},

@@ -58,6 +58,7 @@
   (set unsafe-child-array @[])
   (register-unsafe-child-array unsafe-child-array)
   (enable-cleanup-signals)
+  (register-atexit-cleanup)
 
   (if (and (isatty STDIN_FILENO) (not is-subshell) (= (tcgetpgrp STDIN_FILENO) (getpgrp)))
     (do 
@@ -281,8 +282,6 @@
     
     (file/flush stdout)
     (file/flush stderr)
-    (terminate-all-jobs)
-    
     (os/exit rc))
 
   (var entry-point (first args))
@@ -412,10 +411,8 @@
       j)
     ([e] # This error is unrecoverable to ensure things like running out of FD's
          # don't leave the terminal in an undefined state.
-      (file/write stderr "unrecoverable internal error:") 
-      (file/write stderr (string e))
+      (file/write stderr (string "unrecoverable internal error: " e)) 
       (file/flush stderr)
-      (terminate-all-jobs)
       (os/exit 1))))
 
 (defn job-output [j]
