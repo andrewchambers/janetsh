@@ -247,7 +247,7 @@
   (put j :cleanup false)
   (rebuild-unsafe-child-cleanup-array))
 
-(defn make-job-fg
+(defn fg-job
   [j]
   (when (not is-interactive)
     (error "cannot move job to foreground in non-interactive mode."))
@@ -264,7 +264,7 @@
   (tcsetattr STDIN_FILENO TCSADRAIN shell-tmodes)
   (job-exit-code j))
 
-(defn make-job-bg
+(defn bg-job
   [j]
   (when (job-stopped? j)
     (continue-job j)))
@@ -417,9 +417,9 @@
 
       (if in-foreground
         (if is-interactive
-          (make-job-fg j)
+          (fg-job j)
           (wait-for-job j))
-        (make-job-bg j))
+        (bg-job j))
       (array/push jobs j)
       (prune-complete-jobs)
       (enable-cleanup-signals)
@@ -430,7 +430,7 @@
       (file/flush stderr)
       (os/exit 1))))
 
-(defn job-output [j]
+(defn- job-output [j]
   (let [[fd-a fd-b] (pipe)
         output (buffer/new 1024)
         readbuf (buffer/new-filled 1024)] 
@@ -447,7 +447,6 @@
     (if (= 0 (job-exit-code j))
       (string output)
       (error "job failed!"))))
-
 
 (defn- norm-redir
   [& r]

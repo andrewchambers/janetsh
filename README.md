@@ -165,7 +165,7 @@ Some examples:
 vim
 ...
 Ctrl+Z
-$ (sh/make-job-fg (first sh/jobs))
+$ (sh/fg-job (first sh/jobs))
 ...
 Ctrl+Z
 $ sleep 60 &
