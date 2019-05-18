@@ -105,7 +105,7 @@
   (when (WIFEXITED status)
     (put p :exit-code (WEXITSTATUS status)))
   (when (WIFSIGNALED status)
-    (put p :exit-code 127)
+    (put p :exit-code 129)
     (put p :termsig (WTERMSIG status))))
 
 (defn update-pid-status
@@ -159,7 +159,14 @@
   [j]
   (each p (j :procs)
     (when (not (p :exit-code))
-      (put p :exit-code 129)))) # POSIX requires >128
+      # Last ditch effort to wait for PID (not pgid).
+      # of missing process so we don't leak processes.
+      # One example where this may happen is if the child
+      # dies before it has a chance to call setpgid.
+      (try 
+        (waitpid (p :pid) (bor WUNTRACED WNOHANG))
+        ([e] nil))
+      (put p :exit-code 129))))
 
 (defn wait-for-job
   [j]
@@ -340,7 +347,17 @@
               # ignore. We should never get
               # this error in the child according to
               # the conditions in the man pages.
-              (when (not= (dyn :errno) EACCES)
+              #
+              # ESRCH can happen on BSD's (at least) 
+              # under a similar situation. The child has 
+              # died before we got here in a race with our fork.
+              # It seems we can ignore that error.
+              #
+              # The worse case of ignoring this error seem to
+              # be that this child was really killed before it called setpgid.
+              # This should make a missing job which we will detect later.
+              (when (and (not= (dyn :errno) EACCES)
+                         (not= (dyn :errno) ESRCH))
                 (error e))))
             (put proc :pid pid)
             (put pid2proc pid proc)

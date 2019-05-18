@@ -1,0 +1,26 @@
+#! /usr/bin/env janetsh
+
+(import sh)
+(import shlib)
+
+(var j (sh/$ sleep 999999 &))
+
+# Simulate a process is killed externally
+# and make it go missing by waiting for it.
+
+(var missing-pid ((first (j :procs)) :pid))
+(shlib/kill missing-pid shlib/SIGTERM)
+(shlib/waitpid missing-pid 0)
+(sh/update-job-status j)
+
+(if (not= 129 ((first (j :procs)) :exit-code)) (error "fail"))
+
+# Same again, but this time while waiting.
+
+(set j (sh/$ sleep 999999 &))
+(set missing-pid ((first (j :procs)) :pid))
+(shlib/kill missing-pid shlib/SIGTERM)
+(shlib/waitpid missing-pid 0)
+(sh/wait-for-job j)
+
+(if (not= 129 ((first (j :procs)) :exit-code)) (error "fail"))
