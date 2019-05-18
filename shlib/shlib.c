@@ -415,23 +415,9 @@ signal_children (int signal) {
 }
 
 static void
-wait_children () {
-  if (!unsafe_child_cleanup_array)
-    return;
-
-  for (int i = 0; i < unsafe_child_cleanup_array->count; i++) {
-    int status;
-    pid_t child = janet_unwrap_number(unsafe_child_cleanup_array->data[i]);
-    // Can't do much when this fails.
-    waitpid(child, &status, 0);
-  }
-}
-
-static void
 cleanup_children(void) {
   signal_children(SIGTERM);
   signal_children(SIGCONT);
-  wait_children();
 }
 
 static void

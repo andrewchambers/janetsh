@@ -74,8 +74,8 @@
   []
   (when (not initialized)
     (break))
-  (reset-signal-handlers)
   (set initialized false)
+  (reset-signal-handlers)
   (force-enable-cleanup-signals))
 
 (defn- new-job []
@@ -314,6 +314,10 @@
     (error "uninitialized janetsh runtime."))
   (try
     (do
+      # Disable cleanup signals
+      # so our cleanup code doesn't
+      # miss any pid's and doesn't
+      # interrupt us setting up the pgid.
       (disable-cleanup-signals)
       
       # Flush output files before we fork.
@@ -415,14 +419,18 @@
           (when pipes
             (set infd (pipes 0)))))
 
+      (array/push jobs j)
+      # Since we inserted a new job
+      # we chould prune the old jobs
+      # add configure the cleanup array.
+      (prune-complete-jobs)
+      (enable-cleanup-signals)
+      
       (if in-foreground
         (if is-interactive
           (fg-job j)
           (wait-for-job j))
         (bg-job j))
-      (array/push jobs j)
-      (prune-complete-jobs)
-      (enable-cleanup-signals)
       j)
     ([e] # This error is unrecoverable to ensure things like running out of FD's
          # don't leave the terminal in an undefined state.

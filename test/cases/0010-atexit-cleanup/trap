@@ -2,7 +2,8 @@
 set -eu
 
 on_sig () {
-  echo success > result.txt
+  echo success > result.txt.tmp
+  mv result.txt.tmp result.txt
   exit 1
 }
 

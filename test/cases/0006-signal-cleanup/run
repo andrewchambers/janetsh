@@ -6,4 +6,8 @@ janetpid="$!"
 sleep 0.2
 kill -TERM "$janetpid"
 wait
+while ! test -f result.txt
+do
+  sleep 0.1
+done
 test "success" = "$(cat result.txt)"
