@@ -69,12 +69,13 @@
     (var to-expand (string (string/slice line expand-idx)))
     (var single-expansion (sh/expand to-expand))
     (when (= (length single-expansion) 1)
-      (let [pattern (string to-expand "*")
+      (let [pattern (string (first single-expansion) "*")
             multi-expansion (sh/expand pattern)]
-        (when (not (and (= 1 (length multi-expansion)) (= pattern (first multi-expansion))))
-          (each choice multi-expansion
-            (let [choice-suffix (string/slice choice (length (first single-expansion)))]
-              (add-completion (string line choice-suffix)))))))))
+        (each choice multi-expansion
+          (when (not= choice pattern)
+            (let [choice-suffix (string/slice choice (length (first single-expansion)))
+                  completion (string line choice-suffix)]
+              (add-completion completion))))))))
 
 (defn- getline [prompt buf]
   (defn get-completion [line lc]

@@ -5,7 +5,7 @@ in
     name = "janetsh";
 
     buildInputs = with pkgs; [
-      pkg-config
+      pkgconfig
       janet
       asciinema
       tmux
