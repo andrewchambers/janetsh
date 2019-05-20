@@ -12,7 +12,6 @@
 (var *parens* false)
 (var *handleopts* true)
 
-
 (defn- help-handler
   [&]
   (print "usage: janetsh [options] [script]")
@@ -59,30 +58,24 @@
     (string (os/cwd) " " (parser/state p) "$ ")))
 
 # Use a var so users can redefine this in rc file.
-(var *get-completion*
-  (fn *get-completion*
-    [line add-completion]
-    (var expand-idx 0)
-    (def rline (string/reverse line))
-    (when-let [idx (string/find " " rline)]
-      (set expand-idx (- (length line) idx)))
-    (var to-expand (string (string/slice line expand-idx)))
+(var *get-completions*
+  (fn *get-completions*
+    [line start end]
+    (var completions @[])
+    (var to-expand (string (string/slice line start end)))
     (var single-expansion (sh/expand to-expand))
     (when (= (length single-expansion) 1)
       (let [pattern (string (first single-expansion) "*")
             multi-expansion (sh/expand pattern)]
         (each choice multi-expansion
           (when (not= choice pattern)
-            (let [choice-suffix (string/slice choice (length (first single-expansion)))
-                  completion (string line choice-suffix)]
-              (add-completion completion))))))))
+            (let [completion-suffix (string/slice choice (length (first single-expansion)))
+                  completion (string to-expand completion-suffix)]
+              (array/push completions completion))))))
+    completions))
 
 (defn- getline [prompt buf]
-  (defn get-completion [line lc]
-    (*get-completion* line (partial shlib/ln/add-completion lc)))
-  (when-let [ln (shlib/ln/get-line prompt get-completion)]
-    (when (not= (length ln) 0)
-      (shlib/ln/history-add ln))
+  (when-let [ln (shlib/input/readline prompt *get-completions*)]
     (buffer/push-string buf ln "\n")
     buf))
 
@@ -106,7 +99,6 @@
 (def $$  :macro sh/$$)
 (def $?  :macro sh/$?)
 (def $   :macro sh/$)
-(def clear sh/clear)
 (def do-lines sh/do-lines)
 (def out-lines sh/out-lines)
 
@@ -115,22 +107,15 @@
 (var *janetsh-repl*
   (fn *janetsh-repl*
     []
-    (var hist-file nil)
-    # Shell expand the hist file for the user.
     (when *hist-file*
-      (set hist-file (first (sh/expand *hist-file*))))
-
-    (when hist-file
-      (shlib/ln/history-set-max-len 1024)
-      (shlib/ln/set-multiline true)
       (try
-        (shlib/ln/history-load hist-file)
+        (shlib/input/history-load *hist-file*)
         ([e] nil)))
     
     (repl getchunk nil user-env)
     
-    (when hist-file
-      (shlib/ln/history-save hist-file))))
+    (when *hist-file*
+      (shlib/input/history-save *hist-file*))))
 
 (defn- run-interactive
   []

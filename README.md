@@ -132,11 +132,10 @@ p is a janet standard library parser, which can be used to find the current repl
 
 Users can add set a custom line completion function:
 ```
-(set *get-completion*
-  (fn *get-completion*
-    [line add-completion]
-      (add-completion (string line "your-completion"))
-      nil))
+(set *get-completions*
+  (fn *get-completions*
+    [line word-start word-end]
+    @["your-completion"]))
 ```
 
 ## History file
@@ -175,11 +174,25 @@ $ (sh/disown-job (sh/$ sleep 60 &))
 
 # Installation
 
-You will need janet installed on your system, then you can run:
+For the default build you will need janet, readline and pkg-config installed on your system, then you can run:
 
 ```
 ./configure && make
 ```
+
+If you want editline instead of readline you can build with:
+
+```
+./configure --with-pkg-config-editline && make
+```
+
+If you don't want to depend on readline or editline, you can use the bundled emulation.
+
+```
+./configure --with-readnoise
+```
+
+You can also manually specify header paths and flags.
 
 Try ```./configure --help``` for a list of options.
 

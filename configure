@@ -2,28 +2,93 @@
 
 set -eu
 
+eecho () {
+  echo "$*" >&2
+}
+
 fail() {
-  echo "$0: $*" >&2
+  eecho "$0: $*"
   exit 1
 }
 
 usage () {
   cat <<EOF
-./configure CC=... CFLAGS=... LDFLAGS=... --prefix=... --janet-header-cflags=...
+./configure [OPTS...]
+
+where OPTS are:
+  CC=...
+  CFLAGS=...
+  LDFLAGS=...
+  --prefix=...
+  
+  --janet-header-cflags=...
+    
+    Compiler flags specifying the include path
+    of the janet headers the extension module is built against.
+    
+    If not specifed, 'pkg-config --cflags janet' is used.
+
+  --with-pkg-config-readline
+    
+    Use pkg-config to try and find the right compiler
+    and linker flags for the readline library. This is the default.
+  
+  --with-pkg-config-libedit
+    
+    Use pkg-config to try and find the right compiler
+    and linker flags for the libedit library. This
+    library replaces readline.
+  
+  --with-readnoise
+    
+    Use the bundled readnoise library instead of depending
+    on a system readline or editline.
+  
+  --readline-cflags=...
+    Manually specify the required cflags for using the desired readline compatible library.
+  
+  --readline-ldflags=...
+    Manually specify the required ldflags for linking the desired readline compatible library.
 EOF
   exit 1
 }
 
+WITH_MANUAL_JANET="n"
 JANET_HEADER_CFLAGS=""
+WITH_PKGCONFIG_READLINE="y"
+WITH_PKGCONFIG_LIBEDIT="n"
+WITH_READNOISE="n"
+WITH_MANUAL_READLINE="n"
+READLINE_CFLAGS=""
+READLINE_LDFLAGS=""
 prefix="/usr"
 CC="${CC:-cc}"
-CFLAGS="${CFLAGS:--Wall -O2}"
+CFLAGS="${CFLAGS:--Wall -Wfatal-errors -O2}"
 LDFLAGS="${LDFLAGS:-}"
 
 for arg ; do
   case "$arg" in
   --prefix=*) prefix=${arg#*=} ;;  
-  --janet-header-cflags=*) JANET_HEADER_CFLAGS=${arg#*=} ;;
+  --janet-header-cflags=*) 
+    WITH_MANUAL_JANET="y"
+    JANET_HEADER_CFLAGS=${arg#*=} ;;
+  --readline-cflags=*)
+    WITH_MANUAL_READLINE="y"
+    READLINE_CFLAGS=${arg#*=}
+    ;;
+  --readline-ldflags=*)
+    WITH_MANUAL_READLINE="y"
+    READLINE_LDFLAGS=${arg#*=}
+    ;;
+  --with-pkg-config-readline) 
+    WITH_PKGCONFIG_READLINE="y"
+  ;;
+ --with-pkg-config-editline) 
+    WITH_PKGCONFIG_LIBEDIT="y"
+  ;;
+  --with-readnoise) 
+    WITH_READNOISE="y"
+  ;;
   CC=*) CC=${arg#*=} ;;
   CFLAGS=*) CFLAGS=${arg#*=} ;;
   LDFLAGS=*) LDFLAGS=${arg#*=} ;;
@@ -32,31 +97,34 @@ for arg ; do
   esac
 done
 
-check_janet_headers () {
-  tempdir="$(mktemp -d)"
-  cfile="$tempdir/test.c"
-  cat <<EOF > "$cfile"
-  #include <janet.h>
-  int main() { return 0; }
-EOF
-  TEST="$CC $JANET_HEADER_CFLAGS -c $cfile -o $tempdir/test.out"
-  echo "checking headers with \"$TEST\""
-  $TEST > /dev/null 2>&1
-  rc="$?"
-  echo "test exited with: $rc"
-  rm -r "$tempdir"
-  return "$rc"
-}
-
-echo "Testing janet headers..."
-if ! check_janet_headers
+if test "$WITH_MANUAL_JANET" = "y"
 then
-  echo "janet headers did not work, trying pkg-config..."
-  JANET_HEADER_CFLAGS=$(pkg-config --cflags janet)
-  if ! check_janet_headers
-  then
-    fail "unable to find working janet headers."
-  fi
+  eecho "using manually specifed janet headers."
+else
+  eecho "using pkg-config to find janet headers."
+  JANET_HEADER_CFLAGS="$(pkg-config --cflags janet)"
+fi
+
+if test WITH_MANUAL_READLINE = "y"
+then
+  eecho "using manually specified readline library."
+elif test "$WITH_READNOISE" = "y"
+then
+  eecho "using bundled readnoise."
+  READLINE_CFLAGS="-I./readnoise"
+  READLINE_LDFLAGS=""
+elif test "$WITH_PKGCONFIG_LIBEDIT" = "y"
+then
+  eecho "using pkg-config to find libedit."
+  READLINE_CFLAGS="$(pkg-config --cflags libedit) -D SHLIB_NO_HISTORY_INCLUDE"
+  READLINE_LDFLAGS="$(pkg-config --libs  libedit)"
+elif test "$WITH_PKGCONFIG_READLINE" = "y"
+then
+  eecho "using pkg-config to find readline."
+  READLINE_CFLAGS="$(pkg-config --cflags readline)"
+  READLINE_LDFLAGS="$(pkg-config --libs  readline)"
+else
+  fail "don't know which line input library to use." 
 fi
 
 echo "writing config.inc"
@@ -65,10 +133,17 @@ PREFIX="${prefix}"
 CC="${CC}"
 CFLAGS="${CFLAGS}"
 LDFLAGS="${LDFLAGS}"
+WITH_MANUAL_JANET="${WITH_MANUAL_JANET}"
 JANET_HEADER_CFLAGS="${JANET_HEADER_CFLAGS}"
+WITH_PKGCONFIG_READLINE="${WITH_PKGCONFIG_READLINE}"
+WITH_PKGCONFIG_LIBEDIT="${WITH_PKGCONFIG_LIBEDIT}"
+WITH_READNOISE="${WITH_READNOISE}"
+READLINE_CFLAGS="${READLINE_CFLAGS}"
+READLINE_LDFLAGS="${READLINE_LDFLAGS}"
 EOF
-
 
 echo "configured with:"
 cat config.inc
 
+echo ""
+echo configure SUCCESS

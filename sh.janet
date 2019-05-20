@@ -549,10 +549,6 @@
     :keyword true
     false))
 
-(defn clear
-  []
-  (ln/clear-screen))
-
 (defn- new-cd-builtin
   []
   @{

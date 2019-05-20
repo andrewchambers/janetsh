@@ -12,5 +12,7 @@ in
       expect
       meson
       ninja
+      readline80
+      libedit
     ];
   }

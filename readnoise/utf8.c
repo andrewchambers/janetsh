@@ -453,7 +453,7 @@ static size_t utf8BytesToCodePoint(const char* buf, size_t len, int* cp) {
 
 /* Get length of next grapheme
  */
-size_t shlib_linenoiseUtf8NextCharLen(const char* buf, size_t buf_len, size_t pos, size_t *col_len) {
+size_t linenoiseUtf8NextCharLen(const char* buf, size_t buf_len, size_t pos, size_t *col_len) {
     size_t beg = pos;
     int cp;
     size_t len = utf8BytesToCodePoint(buf + pos, buf_len - pos, &cp);
@@ -474,7 +474,7 @@ size_t shlib_linenoiseUtf8NextCharLen(const char* buf, size_t buf_len, size_t po
 
 /* Get length of previous grapheme
  */
-size_t shlib_linenoiseUtf8PrevCharLen(const char* buf, size_t buf_len, size_t pos, size_t *col_len) {
+size_t linenoiseUtf8PrevCharLen(const char* buf, size_t buf_len, size_t pos, size_t *col_len) {
     UNUSED(buf_len);
     size_t end = pos;
     while (pos > 0) {
@@ -493,7 +493,7 @@ size_t shlib_linenoiseUtf8PrevCharLen(const char* buf, size_t buf_len, size_t po
 
 /* Read a Unicode from file.
  */
-size_t shlib_linenoiseUtf8ReadCode(int fd, char* buf, size_t buf_len, int* cp) {
+size_t linenoiseUtf8ReadCode(int fd, char* buf, size_t buf_len, int* cp) {
     if (buf_len < 1) return -1;
     size_t nread = read(fd,&buf[0],1);
     if (nread <= 0) return nread;
