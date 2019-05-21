@@ -80,7 +80,10 @@
     buf))
 
 (defn- want-implicit-parens [buf p]
-  (and (not *parens*) (> (length buf) 1) (empty? (parser/state p)) (not= (buf 0) 40)))
+  (and (not *parens*)
+       (> (length buf) 1)
+       (empty? (parser/state p))
+       (not (find (partial = (buf 0)) [34 40 64 91 123])))) # " ( @ [ { 
 
 (defn- getchunk [buf p]
   (sh/update-all-jobs-status)

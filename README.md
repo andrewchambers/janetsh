@@ -44,7 +44,7 @@ $ echo foo > /dev/null
 0
 
 $ sleep 5 &
-@{:pgid 82190 :procs @[@{:args @[@["sleep"] "5"]
+@{:pgid 82190 :procs @[@{:args @["sleep" "5"]
       :pid 82190
       :stopped false
       :redirs @[]}]}
@@ -122,7 +122,7 @@ command line flags.
 
 ## Custom prompts
 
-Users can set a custom prompt like so:
+Users can set a custom prompt:
 ```
 (set *get-prompt* (fn [p] "$ "))
 ```
@@ -130,11 +130,10 @@ p is a janet standard library parser, which can be used to find the current repl
 
 ## Custom line completions
 
-Users can add set a custom line completion function:
+Users can set a custom line completion function:
 ```
 (set *get-completions*
-  (fn *get-completions*
-    [line word-start word-end]
+  (fn [line word-start word-end]
     @["your-completion"]))
 ```
 
@@ -209,9 +208,9 @@ interactive repl interface which implicitly invokes a janet macro
 to give janet the familiar sh syntax. You can escape this implicit
 macro by prefixing a line with '(' which reverts to regular janet mode.
 
-Technically janetsh can be used as a plain janet library, but some care is required as the library
-deals with some global resources such as signal handlers and terminals which cannot be shared within
-a program.
+Janetsh can also be used for scripting, in which case it acts a small job control runtime and
+launcher for janet programs.
+
 
 # Project Status and Donations
 
