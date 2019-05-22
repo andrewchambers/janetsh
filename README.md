@@ -173,7 +173,7 @@ $ (sh/disown-job (sh/$ sleep 60 &))
 
 # Installation
 
-For the default build you will need janet, readline and pkg-config installed on your system, then you can run:
+For the default build you will need pre released janet 1.0.0 built from source, readline and pkg-config installed on your system, then you can run:
 
 ```
 ./configure && make

@@ -14,7 +14,7 @@
 
 (defn- help-handler
   [&]
-  (print "usage: janetsh [options] [script]")
+  (print "usage: janetsh [options] [script] [args]")
   (print
   `Options are:
   -h | --help : Show this help and exit.
@@ -43,15 +43,22 @@
   (if h (h i) (do (print "unknown option -" n) ((get handlers "-h")))))
 
 # Process arguments
+(var new-args @[])
+
 (var i 2)
 (def lenargs (length process/args))
 (while (< i lenargs)
   (def arg (get process/args i))
   (if (and *handleopts* (= "-" (string/slice arg 0 1)))
     (+= i (dohandler arg i))
-    (if *script*
-      (error "only one script argument is allowed.")
-      (do (set *script* arg) (+= i 1)))))
+    (do 
+      (array/push new-args arg)
+      (+= i 1)
+      (when (not *script*)
+         (set *script* arg)))))
+
+(array/remove process/args 0 (length process/args))
+(array/concat process/args new-args)
 
 (var *get-prompt*
   (fn *get-prompt* [p]
@@ -83,7 +90,7 @@
   (and (not *parens*)
        (> (length buf) 1)
        (empty? (parser/state p))
-       (not (find (partial = (buf 0)) [34 40 64 91 123])))) # " ( @ [ { 
+       (not (find (partial = (buf 0)) [34 40 64 91 123])))) # " ( @ [ {
 
 (defn- getchunk [buf p]
   (sh/update-all-jobs-status)

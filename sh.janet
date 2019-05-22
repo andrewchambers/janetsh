@@ -645,6 +645,8 @@
   (do-lines 
     (fn [ln] (file/write stdout (f ln)))))
 
+(def escape identity)
+
 (defmacro $
   [& forms]
   (let [[j fg] (parse-job ;forms)]

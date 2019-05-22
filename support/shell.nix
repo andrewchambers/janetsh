@@ -6,7 +6,7 @@ in
 
     buildInputs = with pkgs; [
       pkgconfig
-      janet
+      /* janet */
       asciinema
       tmux
       expect
