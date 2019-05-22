@@ -155,6 +155,9 @@
 # handled by our cleanup handlers.
 (sh/prune-complete-jobs)
 
+(file/flush stdout)
+(file/flush stderr)
+
 (if (= (fiber/status user-fiber) :error)
  (do
    (debug/stacktrace user-fiber fiber-result)
