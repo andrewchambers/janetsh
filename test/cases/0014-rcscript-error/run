@@ -1,0 +1,10 @@
+#! /bin/sh
+set -eux
+
+janetsh -sysrc $TEST_CASE/goodrc.janet $TEST_CASE/case.janet
+
+if janetsh -sysrc $TEST_CASE/badrc.janet $TEST_CASE/case.janet 
+then
+  echo "janetsh exited with: $?"
+  exit 1
+fi

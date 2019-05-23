@@ -94,7 +94,8 @@
 
 (defn- getchunk [buf p]
   (sh/update-all-jobs-status)
-  (when (getline (*get-prompt* p) buf)
+  (def prompt (try (*get-prompt* p) ([e] "$ ")))
+  (when (getline prompt buf)
     (when (want-implicit-parens buf p)
       (let [line (string buf)]
         (buffer/clear buf)
@@ -133,7 +134,9 @@
   (when *rc-file*
     (when (os/stat *rc-file*)
       # FIXME: filename in errors.
-      (eval-string (slurp *rc-file*))))
+      (try
+        (eval-string (slurp *rc-file*))
+        ([e] (file/write stderr (string "error while loading " *rc-file* " : " e "\n"))))))
   (*janetsh-repl*))
 
 (defn- run-func
@@ -141,7 +144,14 @@
   (when *sysrc-file*
     (when (os/stat *sysrc-file*)
       # FIXME: filename in errors.
-      (eval-string (slurp *sysrc-file*))))
+      (try
+        (eval-string (slurp *sysrc-file*))
+        ([e]
+          (file/write stderr (string "error while loading " *sysrc-file* " : " e "\n"))
+          (file/flush stderr)
+          (when *script*
+            # Don't limp along in script mode if the whole system is broken.
+            (os/exit 1))))))
     
     (if *script*
       (import* *script* :prefix "" :exit true)
