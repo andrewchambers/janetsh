@@ -633,12 +633,11 @@
 
 (defn do-lines
   [f]
-  (fn []
+  (fn [args]
     (while true
-      (let [ln (file/read stdin :line)]
-        (if (not (empty? ln))
-          (f ln)
-          (break))))))
+      (if-let [ln (file/read stdin :line)]
+        (f ln)
+        (break)))))
 
 (defn out-lines
   [f]
