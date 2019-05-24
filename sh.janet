@@ -273,14 +273,26 @@
   [args redirs]
   (each r redirs
     (var sinkfd (get r 0))
-    (var srcfd  (get r 2))
-    (when (string? srcfd)
-      (set srcfd (match (r 1)
-        ">"  (open srcfd (bor O_WRONLY O_CREAT O_TRUNC)  (bor S_IWUSR S_IRUSR S_IRGRP))
-        ">>" (open srcfd (bor O_WRONLY O_CREAT O_APPEND) (bor S_IWUSR S_IRUSR S_IRGRP))
-        "<"  (open srcfd (bor O_RDONLY) 0)
-        (error "unhandled redirect"))))
-      (dup2 srcfd sinkfd))
+    (var src  (get r 2))
+    (var srcfd nil)
+    
+    (when (or (tuple? src) (array? src))
+      (when (not= (length src) 1)
+        (error "redirect target tuple has more than one member."))
+      (set src (first src)))
+
+    (match (type src)
+      :string
+        (set srcfd (match (r 1)
+          ">"  (open src (bor O_WRONLY O_CREAT O_TRUNC)  (bor S_IWUSR S_IRUSR S_IRGRP))
+          ">>" (open src (bor O_WRONLY O_CREAT O_APPEND) (bor S_IWUSR S_IRUSR S_IRGRP))
+          "<"  (open src (bor O_RDONLY) 0)
+          (error "unhandled redirect")))
+      :number
+        (set srcfd src)
+      (error "unsupported redirect target type"))
+    
+    (dup2 srcfd sinkfd))
   
   (defn- run-subshell-proc [f args]
     # This is a subshell inside a job.
@@ -408,7 +420,7 @@
                 
                 (exec-proc (proc :args) redirs)
                 (error "unreachable"))
-            ([e] (os/exit 1))))
+            ([e] (do (file/write stderr (string e "\n")) (os/exit 1)))))
 
           (post-fork pid)
 
@@ -456,42 +468,14 @@
       (string output)
       (error "job failed!"))))
 
-(defn- norm-redir
-  [& r]
-  (var @[a b c] r)
-  (when (and (= "" a) (= "<" b))
-    (set a 0))
-  (when (and (= "" a) (or (= ">" b) (= ">>" b)))
-    (set a 1))
-  (when (= c "")
-    (set c nil))
-  @[a b c])
-
-(def- redir-grammar
-  )
-
-(def- redir-parser (peg/compile
-  ~{
-    :fd (replace (<- (some (range "09"))) ,scan-number)
-    :redir
-      (* (+ :fd (<- "")) (<- (+ ">>" ">" "<")) (+ (* "&" :fd ) (<- (any 1))))
-    :main (replace :redir ,norm-redir)
-  }))
-
-(defn parse-redir
-  [r]
-  (let [match (peg/match redir-parser (string r))]
-    (when match (first match))))
-
 (defn- get-home
   []
-  (os/getenv "HOME"))
+  (or (os/getenv "HOME") ""))
 
 (defn- expand-getenv 
   [s]
   (or 
     (match s
-      "HOME" (get-home)
       "PWD" (os/cwd)
       (os/getenv s))
     ""))
@@ -516,8 +500,34 @@
   (when (= s "~") (set s (get-home)))
   (glob (string ;(peg/match expand-parser s))))
 
+(defn- norm-redir
+  [& r]
+  (var @[a b c] r)
+  (when (and (= "" a) (= "<" b))
+    (set a 0))
+  (when (and (= "" a) (or (= ">" b) (= ">>" b)))
+    (set a 1))
+  (when (= c "")
+    (set c nil))
+  (when (string? c)
+    (set c (tuple first (tuple expand c))))
+  @[a b c])
+
+(def- redir-parser (peg/compile
+  ~{
+    :fd (replace (<- (some (range "09"))) ,scan-number)
+    :redir
+      (* (+ :fd (<- "")) (<- (+ ">>" ">" "<")) (+ (* "&" :fd ) (<- (any 1))))
+    :main (replace :redir ,norm-redir)
+  }))
+
+(defn parse-redir
+  [r]
+  (let [match (peg/match redir-parser r)]
+    (when match (first match))))
+
 (defn- form-to-arg
-  "Convert a form to a form that does
+  "Convert a form to a form that is
    shell expanded at runtime."
   [f]
   (match (type f)
@@ -526,12 +536,12 @@
             (= (first f) 'quasiquote)
             (= (length f) 2)
             (= (type (f 1)) :symbol))
-        (tuple (fn [] (expand (string "~" (f 1)))))
+        (tuple expand (string "~" (f 1)))
         f)
     :keyword
-      (tuple (fn [] (expand (string f))))
+      (tuple expand (string f))
     :symbol
-      (tuple (fn [] (expand (string f))))
+      (tuple expand (string f))
     :number
       (string f)
     :boolean
@@ -577,7 +587,6 @@
         (file/write stdout "\x1b[H\x1b[2J"))
   })
 
-
 (defn- replace-builtins
   [args]
   (match (first args)
@@ -606,15 +615,14 @@
                      (reset-proc))
           (= '& f) (do (set fg false) (set state :done))
           
-          (do 
-            (let [redir (parse-redir f)]
-              (if (and (arg-symbol? f) redir)
-                (if (redir 2)
-                  (array/push (proc :redirs) redir)
-                  (do (set pending-redir redir) (set state :redir)))
-                (array/push (proc :args) (form-to-arg f))))))
+          (let [redir (parse-redir (string f))]
+            (if (and (arg-symbol? f) redir)
+              (if (redir 2)
+                (array/push (proc :redirs) redir)
+                (do (set pending-redir redir) (set state :redir)))
+              (array/push (proc :args) (form-to-arg f)))))
       :redir (do
-               (put pending-redir 2 (string f))
+               (put pending-redir 2 (form-to-arg f))
                (array/push (proc :redirs) pending-redir)
                (set state :proc))
       :done (error "unexpected input after command end")

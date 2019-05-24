@@ -179,13 +179,13 @@ For the default build you will need pre released janet 1.0.0 built from source, 
 ./configure && make
 ```
 
-If you want editline instead of readline you can build with:
+If you want libedit instead of readline you can build with:
 
 ```
-./configure --with-pkg-config-editline && make
+./configure --with-pkg-config-libedit && make
 ```
 
-If you don't want to depend on readline or editline, you can use the bundled emulation.
+If you don't want to depend on readline or libedit, you can use the bundled emulation.
 
 ```
 ./configure --with-readnoise

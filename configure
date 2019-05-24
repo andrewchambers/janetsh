@@ -83,7 +83,7 @@ for arg ; do
   --with-pkg-config-readline) 
     WITH_PKGCONFIG_READLINE="y"
   ;;
- --with-pkg-config-editline) 
+ --with-pkg-config-libedit) 
     WITH_PKGCONFIG_LIBEDIT="y"
   ;;
   --with-readnoise) 
