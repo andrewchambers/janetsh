@@ -187,7 +187,7 @@ static Janet glob_(int32_t argc, Janet *argv) {
 
   janet_fixarity(argc, 1);
   const char *pattern = janet_getcstring(argv, 0);
-  if (glob(pattern, GLOB_ERR|GLOB_NOCHECK, NULL, &g) != 0)
+  if (glob(pattern, GLOB_NOCHECK, NULL, &g) != 0)
     panic_errno("glob", errno);
 
   char **p = g.gl_pathv;
