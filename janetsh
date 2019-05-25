@@ -64,21 +64,46 @@
   (fn *get-prompt* [p]
     (string (os/cwd) " " (parser/state p) "$ ")))
 
-# Use a var so users can redefine this in rc file.
+
 (var *get-completions*
   (fn *get-completions*
     [line start end]
+
+    (defn- scan-for-completions
+      [prefix want-bin]
+      (defn desired-file?
+        [p]
+        (let [stat (os/stat p)]
+          (if want-bin
+            (and stat (= (stat :mode) :file) (string/find "x" (stat :permissions)))
+            stat)))
+      (var single (sh/expand prefix))
+      (when (= (length single) 1)
+        (->> (sh/expand (string prefix "*"))
+          (filter desired-file?)
+          (map (fn [exp] (string/slice (string/slice exp (length (first single)))))))))
+
+    (defn- completion-want-bin?
+      [line start]
+      (var i (dec start))
+      (var want-bin true)
+      (while (>= i 0)
+        (when (= (line i) ("|" 0))
+          (break))
+        (when (not= (line i) (" " 0))
+          (set want-bin false)
+          (break))
+        (-- i))
+      want-bin)
+
     (var completions @[])
     (var to-expand (string (string/slice line start end)))
-    (var single-expansion (sh/expand to-expand))
-    (when (= (length single-expansion) 1)
-      (let [pattern (string (first single-expansion) "*")
-            multi-expansion (sh/expand pattern)]
-        (each choice multi-expansion
-          (when (not= choice pattern)
-            (let [completion-suffix (string/slice choice (length (first single-expansion)))
-                  completion (string to-expand completion-suffix)]
-              (array/push completions completion))))))
+    (each completion (scan-for-completions to-expand false)
+      (array/push completions (string to-expand completion)))
+    (when (and (not (string/find "/" to-expand)) (completion-want-bin? line start))
+      (each path-ent (string/split ":" (os/getenv "PATH"))
+        (each completion (scan-for-completions (string path-ent "/" to-expand) true)
+          (array/push completions (string to-expand completion)))))
     completions))
 
 (defn- getline [prompt buf]
