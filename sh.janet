@@ -142,6 +142,7 @@
     0 (j :procs)))
 
 (defn job-complete?
+  "Returns true when all processes in the job have exited."
   [j]
   (number? (job-exit-code j)))
 
@@ -185,6 +186,7 @@
   j)
 
 (defn update-job-status
+  "Poll and update the status and exit codes of the job without blocking."
   [j]
   (try
     (while true
@@ -197,6 +199,7 @@
         (error err)))))
 
 (defn update-all-jobs-status
+  "Poll all active jobs and update their status information without blocking."
   []
   (each j jobs
     (when (not (job-complete? j))
@@ -230,6 +233,8 @@
   (enable-cleanup-signals))
 
 (defn prune-complete-jobs
+  "Poll active jobs without blocking and then remove completed jobs
+   from the jobs table."
   []
   (update-all-jobs-status)
   (set jobs (filter (complement job-complete?) jobs))
@@ -248,6 +253,7 @@
   (rebuild-unsafe-child-cleanup-array))
 
 (defn fg-job
+  "Shift job into the foreground and give it control of the terminal."
   [j]
   (when (not is-interactive)
     (error "cannot move job to foreground in non-interactive mode."))
@@ -265,6 +271,7 @@
   (job-exit-code j))
 
 (defn bg-job
+  "Resume a stopped job in the background."
   [j]
   (when (job-stopped? j)
     (continue-job j)))
@@ -495,6 +502,10 @@
   }))
 
 (defn expand
+  "Perform shell expansion on the provided string.
+  Will expand a leading tild, environment variables
+  in the form '$VAR '${VAR}' and path globs such
+  as '*.txt'. Returns an array with the expansion."
   [s]
   (var s s)
   (when (= s "~") (set s (get-home)))
@@ -532,12 +543,14 @@
   [f]
   (match (type f)
     :tuple
-      (if (and # Somewhat ugly special case. Check for the quasiquote so we can use ~/ nicely.
-            (= (first f) 'quasiquote)
-            (= (length f) 2)
-            (= (type (f 1)) :symbol))
-        (tuple expand (string "~" (f 1)))
-        f)
+      (if (= (tuple/type f) :brackets)
+        f
+        (if (and # Somewhat ugly special case. Check for the quasiquote so we can use ~/ nicely.
+              (= (first f) 'quasiquote)
+              (= (length f) 2)
+              (= (type (f 1)) :symbol))
+          (tuple expand (string "~" (f 1)))
+          f))
     :keyword
       (tuple expand (string f))
     :symbol
@@ -547,6 +560,8 @@
     :boolean
       (string f)
     :string
+      f
+    :array
       f
     :nil
       "nil"
@@ -640,6 +655,8 @@
   [job fg])
 
 (defn do-lines
+  "Return a function that calls f on each line of stdin.\n\n
+   Primarily useful for subshells."
   [f]
   (fn [args]
     (while true
@@ -648,13 +665,55 @@
         (break)))))
 
 (defn out-lines
+  "Return a function that calls f on each line of stdin.\n\n
+   writing the result to stdout if it is not nil.\n\n 
+   
+   Example: \n\n
+
+   (sh/$ echo \"a\\nb\\nc\" | (out-lines string/ascii-upper))"
   [f]
   (do-lines 
-    (fn [ln] (file/write stdout (f ln)))))
+    (fn [ln]
+      (when-let [xln (f ln)]
+        (file/write stdout xln)))))
 
 (def escape identity)
 
 (defmacro $
+  "Execute a shell job (pipeline) in the foreground or background with 
+   a set of optional redirections for each process.\n\n
+  
+   If the job is a foreground job, this macro waits till the 
+   job either stops, or exits. If the job exits with an error
+   status the job raises an error.\n\n
+
+   If the job is a background job, this macro returns a the job table entry 
+   that can be used to manage the job.\n\n
+
+   Jobs take the exit code of the first failed process in the job with one
+   exception, processes that terminate due to SIGPIPE do not count towards the 
+   job exit code.\n\n
+
+   Symbols inside the $ are treated more or less like a traditional shell with 
+   some exceptions:\n\n
+   
+   - Janet keywords can be used to escape janet symbol rules. \n\n
+   - A Janet call inside a job are treated as janet code janet mode.
+     Escaped janet code can return either a function in the place of a process name, strings, 
+     or nested arrays of strings which are flattened on invocation. \n\n
+   - The quasiquote operator ~ is handled specially for convenience in simple cases, but 
+    for complex cases string quoting may be needed. \n\n
+   
+   Examples:\n\n
+
+   (sh/$ ls *.txt | cat )\n
+   (sh/$ ls @[\"/\" [\"/usr\"]])\n
+   (sh/$ ls (os/cwd))
+   (sh/$ ls (os/cwd) >/dev/null :2>&1 )\n
+   (sh/$ (fn [args] (pp args)) hello world | cat )\n
+   (sh/$ \"ls\" (sh/expand \"*.txt\"))\n
+   (sh/$ sleep (+ 1 5) &)\n"
+
   [& forms]
   (let [[j fg] (parse-job ;forms)]
   ~(do
@@ -677,10 +736,21 @@
           j)))))
 
 (defmacro $?
+  "Execute a shell job (pipeline) in the foreground or background with 
+   a set of optional redirections for each process returning the job exit code.\n\n
+
+   See the $ documenation for examples and more detailed information about the
+   accepted syntax."
   [& forms]
   (fn-$? forms))
 
 (defmacro $??
+  "Execute a shell job (pipeline) in the foreground or background with 
+   a set of optional redirections for each process returning true or false
+   depending on whether the job was a success.\n\n
+
+   See the $ documenation for examples and more detailed information about the
+   accepted syntax."
   [& forms]
   (let [rc-forms (fn-$? forms)]
     ~(= 0 ,rc-forms)))
@@ -693,10 +763,21 @@
       ~(,job-output ,j)))
 
 (defmacro $$
+  "Execute a shell job (pipeline) in the foreground with 
+   a set of optional redirections for each process returning the job stdout as a string.\n\n
+
+   See the $ documenation for examples and more detailed information about the
+   accepted syntax."
   [& forms]
   (fn-$$ forms))
 
 (defmacro $$_
+  "Execute a shell job (pipeline) in the foreground with 
+   a set of optional redirections for each process returning
+   the job stdout as a trimmed string.\n\n
+
+   See the $ documenation for examples and more detailed information about the
+   accepted syntax."
   [& forms]
   (let [out-forms (fn-$$ forms)]
     ~(,string/trimr ,out-forms)))

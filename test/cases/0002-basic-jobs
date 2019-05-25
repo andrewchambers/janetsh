@@ -12,6 +12,12 @@
 (when (not= (sh/$$_ echo hello) "hello")
   (error "fail"))
 
+(when (not= (sh/$$_ echo @["hello" ["world"]] ) "hello world")
+  (error "fail"))
+
+(when (not= (sh/$$_ echo ["hello" @["world"]] ) "hello world")
+  (error "fail"))
+
 (when (not= (sh/$$_ echo (+ 1 2 3)) "6")
   (error "fail"))
 
