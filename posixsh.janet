@@ -37,6 +37,8 @@
   (string buf))
 
 (defn load-env
+  "Invoke '/bin/sh --norc' sourcing path, then collecting the resulting environment into
+   a list of key value pairs."
   [path]
   (def envstr
     (sh/$$ "/bin/sh" "--norc" "-c" 
@@ -44,6 +46,9 @@
   (partition 2 (parse-env envstr)))
 
 (defn source-env
+  "Call load-env with path, then set the current process environment 
+   variables to match those keys are in the table whitelist and not in
+   the table blacklist."
   [path &opt whitelist blacklist]
   (var envvars (load-env path))
   (each [k v] envvars
