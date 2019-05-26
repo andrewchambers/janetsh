@@ -5,7 +5,7 @@
 
 (var initialized false)
 
-(var is-interactive nil)
+(var on-tty nil)
 
 # Stores the last saved tmodes of the shell.
 # Set and restored when running jobs in the foreground.
@@ -59,14 +59,14 @@
   (register-unsafe-child-cleanup-array unsafe-child-cleanup-array)
   (enable-cleanup-signals)
   (register-atexit-cleanup)
-
-  (if (and (isatty STDIN_FILENO) (not is-subshell) (= (tcgetpgrp STDIN_FILENO) (getpgrp)))
-    (do 
-      (set is-interactive true)
-      (set-interactive-signal-handlers))
-    (do
-      (set is-interactive false)
-      (set-noninteractive-signal-handlers)))
+  
+  (set on-tty
+    (and (isatty STDIN_FILENO)
+         (= (tcgetpgrp STDIN_FILENO) (getpgrp))))
+  (if is-subshell
+    (set-noninteractive-signal-handlers)
+    (set-interactive-signal-handlers))
+  
   (set initialized true)
   nil)
 
@@ -255,8 +255,8 @@
 (defn fg-job
   "Shift job into the foreground and give it control of the terminal."
   [j]
-  (when (not is-interactive)
-    (error "cannot move job to foreground in non-interactive mode."))
+  (when (not on-tty)
+    (error "cannot move job to foreground when not on a tty."))
   (set shell-tmodes (tcgetattr STDIN_FILENO))
   (when (j :tmodes)
     (tcsetattr STDIN_FILENO TCSADRAIN (j :tmodes)))
@@ -398,7 +398,7 @@
                 (error e))))
             (put proc :pid pid)
             (put pid2proc pid proc)
-            (when (and is-interactive in-foreground)
+            (when (and on-tty in-foreground)
               (tcsetpgrp STDIN_FILENO (j :pgid))))
 
           (var pid (fork))
@@ -446,7 +446,7 @@
       (enable-cleanup-signals)
       
       (if in-foreground
-        (if is-interactive
+        (if on-tty
           (fg-job j)
           (wait-for-job j))
         (bg-job j))
