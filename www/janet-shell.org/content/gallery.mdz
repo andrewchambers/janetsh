@@ -5,10 +5,21 @@
 
 # Gallery
 
+Create a github issue to make a submission to the gallery,
+edits may be made before files are added to the gallery.
+
 ## Blog posts
 
 @ul{@li{@link[https://acha.ninja/blog/powerful-scripting-with-janetsh/]{Powerful scripting with janetsh} - Andrew Chambers}}
 
-## User Prompts
+## RC files and prompts
 
-Coming soon...
+### Bash like - Andrew Chambers
+
+@asciinema("EGSQZuZBD9FFfAOUtIFA10Qye" :size "small" :theme "monokai")
+@link[https://github.com/andrewchambers/janetsh/tree/master/www/bash-like-andrew-chambers.rc]{code}
+
+### Bash like - Bakpakin
+
+@asciinema("kiijaIVuo7y90rEkNwLXoPwTR" :size "small" :theme "monokai")
+@link[https://github.com/andrewchambers/janetsh/tree/master/www/bash-like-bakpakin.rc]{code}

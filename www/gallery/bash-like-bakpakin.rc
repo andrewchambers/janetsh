@@ -1,0 +1,23 @@
+
+(defn ansi
+  "Take a string made by concatenating xs and colorize it for an ANSI terminal."
+  [code & xs]
+  (string "\e[" code "m" ;xs "\e[0m"))
+
+(defn my-prompt
+  [p] 
+  (let [wd (os/cwd)
+        home (os/getenv "HOME")
+        user (os/getenv "USER")
+        host (sh/$$_ uname -n)
+        fwd (if (string/has-prefix? home wd)
+              (string/replace home "~" wd)
+              wd)]
+    (string (ansi "31;1" user "@" host)
+            ":"
+            (ansi "34;1" fwd)
+            ":"
+            (ansi "34;1" (parser/state p))
+            "$ ")))
+
+(set *get-prompt* my-prompt)

@@ -1,0 +1,32 @@
+(set *hist-file* (first (sh/expand "~/.janetsh.hist")))
+
+(def tc
+  {
+    # The wrapping \x01 ... \x02 tell readline the surrounded string has zero length.
+    # Without it we get strange artifacts in the string history.
+    :bold "\x01\x1b[1m\x02"
+    :none "\x01\x1b[0m\x02"
+  })
+
+(set *get-prompt*
+  (fn [p] 
+    (var cwd (os/cwd))
+    (var home (os/getenv "HOME"))
+    (var who "<unknown>")
+    (var where "<unknown>")
+    (var end "$")
+    (def pstate (parser/state p))
+    
+    (when (not (empty? pstate))
+      (set end (string pstate "..")))
+    
+    (try
+      (do 
+        (set who (sh/$$_ whoami))
+        (set where (sh/$$_ hostname)))
+      ([e] nil))
+    (when (string/has-prefix? home cwd)
+      (set cwd (string "~" (string/slice cwd (length home)))))
+    (string (tc :bold)
+            "[" who "@" where ":" cwd "] " end " "
+            (tc :none))))
