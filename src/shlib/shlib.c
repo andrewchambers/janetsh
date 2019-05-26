@@ -370,7 +370,13 @@ static Janet set_noninteractive_signal_handlers(int32_t argc, Janet *argv) {
   memset(&act, 0, sizeof(act));
   act.sa_handler = SIG_IGN;
 
-  if (sigaction(SIGPIPE, &act, NULL) == -1)
+  if ( (sigaction(SIGPIPE, &act, NULL) == -1)
+    /* 
+       Not totally certain about ignoring this signal, but
+       When it is enabled, our terminal is stopped after a tcsetpgrp
+       call for configuring a child.
+    */
+    || (sigaction(SIGTTOU, &act, NULL) == -1))
     janet_panic("sigaction: error");
   
   sigset_t block_mask;
