@@ -24,7 +24,7 @@ Help develop janetsh [donate via paypal](https://www.paypal.com/cgi-bin/webscr?c
 
 # See it in action
 
-![demo](./demos/seeitinaction.cast.gif)
+[![asciicast](https://asciinema.org/a/248403.svg)](https://asciinema.org/a/248403)
 
 [demo source code](./demos/demos.janet)
 
@@ -86,16 +86,6 @@ $ (if ($?? touch /tmp/test.txt) "shorthand success")
 "shorthand success"
 ```
 
-## Subshells
-
-```
-$ ls | head -n 3 | (out-lines string/ascii-upper)
-BUILD.SH
-DEMOS
-JANETSH
-0
-```
-
 ## Exceptions/Errors
 
 ```
@@ -105,6 +95,22 @@ $ (try
       ($ rm bar.txt)
       ($ rm baz.txt))
     ([err] (print "got an error:" err)))
+```
+
+## Mixing janet code and shell commands
+
+```
+$ (each f files (sh/$ wc -l [f]))
+```
+
+## Subshells
+
+```
+$ ls | head -n 3 | (out-lines string/ascii-upper)
+BUILD.SH
+DEMOS
+JANETSH
+0
 ```
 
 # Reference Documentation
@@ -176,13 +182,13 @@ $ (sh/disown-job (sh/$ sleep 60 &))
 For the default build you will need pre released janet 1.0.0 built from source, readline and pkg-config installed on your system, then you can run:
 
 ```
-./configure && make
+./configure && make install
 ```
 
 If you want libedit instead of readline you can build with:
 
 ```
-./configure --with-pkg-config-libedit && make
+./configure --with-pkg-config-libedit
 ```
 
 If you don't want to depend on readline or libedit, you can use the bundled emulation.
@@ -191,7 +197,7 @@ If you don't want to depend on readline or libedit, you can use the bundled emul
 ./configure --with-readnoise
 ```
 
-You can also manually specify header paths and flags.
+You can also manually specify header paths, install paths and flags.
 
 Try ```./configure --help``` for a list of options.
 

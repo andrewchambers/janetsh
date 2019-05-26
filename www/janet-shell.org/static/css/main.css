@@ -1,0 +1,251 @@
+/* http://meyerweb.com/eric/tools/css/reset/
+   v2.0 | 20110126
+   License: none (public domain)
+*/
+
+html, body, div, span, applet, object, iframe,
+h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+a, abbr, acronym, address, big, cite, code,
+del, dfn, em, img, ins, kbd, q, s, samp,
+small, strike, strong, sub, sup, tt, var,
+b, u, i, center,
+dl, dt, dd, ol, ul, li,
+fieldset, form, label, legend,
+table, caption, tbody, tfoot, thead, tr, th, td,
+article, aside, canvas, details, embed,
+figure, figcaption, footer, header, hgroup,
+menu, nav, output, ruby, section, summary,
+time, mark, audio, video {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	font-size: 100%;
+	font: inherit;
+	vertical-align: baseline;
+}
+article, aside, details, figcaption, figure,
+footer, header, hgroup, menu, nav, section {
+	display: block;
+}
+body {
+	line-height: 1;
+}
+blockquote, q {
+	quotes: none;
+}
+blockquote:before, blockquote:after,
+q:before, q:after {
+	content: '';
+	content: none;
+}
+table {
+	border-collapse: collapse;
+	border-spacing: 0;
+}
+
+/* Now apply relevant style */
+
+body {
+    font-size: 1rem;
+    font-family: sans-serif;
+    line-height: 1.4;
+    color: #222;
+    padding: 0;
+    margin: 0;
+}
+
+.content-wrapper {
+    margin: 0 auto;
+    max-width: 800px;
+}
+
+.inner-wrapper {
+    padding: 0 12px;
+}
+
+@media (max-width: 1000px) {
+    .content-wrapper {
+        max-width: 600px;
+    }
+}
+
+ol, ul {
+    margin-top: 15px;
+    margin-bottom: 15px;
+    margin-left: 25px;
+}
+
+p {
+    margin-bottom: 1em;
+}
+
+a {
+    color: #2674d3;
+}
+
+/* Code */
+
+code, pre {
+    font-family: monospace;
+    white-space: pre-wrap;
+}
+
+pre {
+    margin: 15px 0;
+    line-height: 1.2;
+    border-radius: 5px;
+    padding: 10px;
+    background: #111;
+    color: white;
+}
+
+h1, h2, h3 {
+    font-family: 'Helvetica';
+    color: #111;
+    border-bottom: solid 2px #CCC;
+}
+
+h1 {
+    font-size: 3rem;
+    padding-top: 3rem;
+    margin-bottom: 2rem;
+}
+h2 {
+    font-size: 2rem;
+    padding-top: 32px;
+    margin-bottom: 24px;
+}
+h3 {
+    color: #333;
+    font-size: 1.6rem;
+    padding-top: 18px;
+    margin-bottom: 16px;
+}
+
+@media (max-width: 700px) {
+    h1 {
+        font-size: 2.5rem;
+        padding-top: 2.5rem;
+        padding-bottom: 1.5rem;
+    }
+    h2 {
+        font-size: 1.8rem;
+        padding-top: 28px;
+        padding-bottom: 20px;
+    }
+    h3 {
+        font-size: 1.5rem;
+        padding-top: 16px;
+        padding-bottom: 14px;
+    }
+}
+
+@media (max-width: 500px) {
+    h1 {
+        font-size: 2rem;
+        padding-top: 2rem;
+        padding-bottom: 1rem;
+    }
+    h2 {
+        font-size: 1.6rem;
+        padding-top: 24px;
+        padding-bottom: 18px;
+    }
+    h3 {
+        font-size: 1.4rem;
+        padding-top: 14px;
+        padding-bottom: 12px;
+    }
+}
+
+hr {
+    height: 2px;
+    background: linear-gradient(to left, #09a5b8, #076591);
+    border: none;
+    margin-top: 2px;
+    margin-bottom: 2px;
+}
+
+.nice-back {
+    background: linear-gradient(to left, #09a5b8, #076591);
+    padding: 14px;
+}
+
+/* Tables */
+
+.mendoza-table {
+    width: calc(100% - 40px);
+    margin: 25px 20px;
+}
+
+.mendoza-table tr {
+    border-top: 1px solid #cccccc;
+    background-color: white;
+}
+
+.mendoza-table tr th {
+    font-weight: bold;
+    border: 1px solid #cccccc;
+    text-align: left;
+    margin: 0;
+    padding: 8px 15px;
+}
+
+.mendoza-table tr td {
+    border: 1px solid #cccccc;
+    text-align: left;
+    margin: 0;
+    padding: 8px 15px;
+}
+
+.mendoza-table tr th :first-child, table tr td :first-child {
+    margin-top: 0;
+}
+
+.mendoza-table tr th :last-child, table tr td :last-child {
+    margin-bottom: 0;
+}
+
+/* Footer */
+
+.pre-footer {
+    margin-top: 65px;
+}
+
+footer {
+    margin: 32px auto;
+    text-align: center;
+    color: #888;
+}
+
+/* Heading */
+
+.heading {
+    padding: 10px;
+    margin: 10px;
+}
+
+.head-main a {
+    color: white;
+    font-size: 1.4em;
+    margin-right: 15px;
+    text-decoration: none;
+}
+
+.head-span a {
+    color: #DFDFDF;
+    font-size: 1.1em;
+    text-decoration: none;
+    margin-right: 8px;
+}
+
+.mendoza-video {
+    display: block;
+    padding: 32px 0;
+}
+
+.mendoza-center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}

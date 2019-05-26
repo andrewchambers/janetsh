@@ -1,0 +1,12 @@
+.mdzsyn-number { color: #89dc76; }
+.mdzsyn-keyword { color: #ffd866; }
+.mdzsyn-string { color: #ab90f2; }
+.mdzsyn-coresym { color: #ff6188; }
+.mdzsyn-constant { color: #fc9867; }
+.mdzsyn-string { color: #fc9867; }
+.mdzsyn-character { color: red; }
+.mdzsyn-identifier { color: white; }
+.mdzsyn-comment { color: gray; }
+.mdzsyn-operator { color: white; }
+.mdzsyn-type { color: green; }
+.mdzsyn-line { color: gray; }

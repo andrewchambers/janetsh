@@ -16,7 +16,6 @@ cd meson
 ninja install
 cd ../../../
 ./configure --prefix="$prefix" --janet-header-cflags="-I$(readlink -f ./ci_builds/janet-${janetver}/src/include)" --with-readnoise
-make clean
 make install
 export PATH="$prefix/bin:$PATH"
 ./test/runner

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  {{ {:template "head"} }}
+  <title>{{ (state :title) }}</title>
+</head>
+
+<body>
+  {{ {:template "heading"} }}
+  <div class="content-wrapper">
+    <div class="inner-wrapper">
+      {{ content }}
+    </div>
+  </div>
+  <div class="pre-footer">
+    <hr>
+  </div>
+  <footer>
+    Copyright &copy; Andrew Chambers {{ ((os/date) :year) }}
+  </footer>
+</body>
+
+</html>

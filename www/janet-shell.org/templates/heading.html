@@ -1,0 +1,10 @@
+<div class="nice-back">
+  <div class="content-wrapper">
+    <div class="heading">
+      {% (each p pages %}
+      <span class="{{ (if (= url (p :url)) "head-main" "head-span") }}"><a href="{{ (p :url) }}">{{ (p :title) }}</a></span>
+      {% ) %}
+    </div>
+  </div>
+</div>
+<hr>

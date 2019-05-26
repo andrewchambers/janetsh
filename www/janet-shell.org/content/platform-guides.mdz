@@ -1,0 +1,23 @@
+{:title "Platform Guides"
+ :template "main"
+ :order 2}
+---
+
+
+# Platform Guides
+
+## Nixos
+
+Prepare a nixos derivation with the desired version of janet and janetsh:
+
+@gist[andrewchambers/a13e28aa644770acff756200be9d975b]
+
+Setup a sysrc file that loads the required nixos paths and optionally
+make it your user shell.
+
+@gist[andrewchambers/a729d371ad306455737ce721dbe16da1]
+
+
+## Everything else
+
+Try building from @link[https://github.com/andrewchambers/janetsh]{source code} or @link[https://gitter.im/janetsh/community]{gitter} or contact the @link[https://lists.sr.ht/~ach/janetsh]{mailing list} or @link[https://gitter.im/janetsh/community]{gitter} for help.

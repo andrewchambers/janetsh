@@ -1,18 +1,22 @@
 let
   pkgs = (import <nixpkgs>) {};
+  janet =  ((pkgs.callPackage ./janet.nix) {});
+  mendoza = ((pkgs.callPackage ./mendoza.nix) { inherit janet; });
 in
   pkgs.stdenv.mkDerivation {
     name = "janetsh";
 
     buildInputs = with pkgs; [
-      pkgconfig
-      /* janet */
       asciinema
-      tmux
       expect
+      inotify-tools
+      janet
+      libedit
+      mendoza
       meson
       ninja
+      pkgconfig
       readline80
-      libedit
+      tmux
     ];
   }

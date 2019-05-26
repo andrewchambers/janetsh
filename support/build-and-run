@@ -1,0 +1,6 @@
+#! /bin/sh
+
+set -eux
+./support/do -c all
+cd ./src
+exec janet ./janetsh
