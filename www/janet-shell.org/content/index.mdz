@@ -1,0 +1,35 @@
+{:title "Janet Shell"
+ :template "main"
+ :order 1}
+---
+
+# Janet Shell
+
+Janet shell or Janetsh for short is an interactive shell and scripting tool
+for unix like operating systems based on the @link[https://janet-lang.org/]{Janet programming language}.
+
+@asciinema[248403]
+
+## Features
+
+@ul{@li{Highly customizable}
+    @li{Functional and imperative standard library}
+    @li{Seamless mixing of system commands and janet code}
+    @li{300+ functions and macros in the core library}
+    @li{Mutable and immutable arrays, hashtables, and string types}
+    @li{Powerful lisp macros}
+    @li{Runtime loadable extension modules written in C/C++/rust/zig...}
+    @li{Small and fast}}
+
+
+## Install it
+
+@ul{@li{@link[https://github.com/andrewchambers/janetsh]{From source code}}
+    @li{@link[https://janet-shell.org/platform-guides.html]{Platform Guides}}}
+
+## Contact and help
+
+@ul{
+  @li{@link[https://gitter.im/janetsh/community]{Gitter Chat}}
+  @li{@link[https://lists.sr.ht/~ach/janetsh]{Mailing list}}}
+

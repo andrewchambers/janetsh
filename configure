@@ -111,7 +111,7 @@ then
 elif test "$WITH_READNOISE" = "y"
 then
   eecho "using bundled readnoise."
-  READLINE_CFLAGS="-I./readnoise"
+  READLINE_CFLAGS="-I./src/readnoise"
   READLINE_LDFLAGS=""
 elif test "$WITH_PKGCONFIG_LIBEDIT" = "y"
 then
