@@ -8,6 +8,10 @@ all:
 install:
 	./support/do -c install
 
+.PHONY: uninstall
+uninstall:
+	./support/do -c uninstall
+
 .PHONY: clean
 clean:
 	./support/do -c clean
