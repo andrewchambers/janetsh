@@ -1,8 +1,8 @@
 # Janetsh 
 
-[Website](https://janet-shell.org)
-
 [![Gitter](https://badges.gitter.im/janetsh/community.svg)](https://gitter.im/janetsh/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+
+[Website](https://janet-shell.org)
 
 [Mailing list](https://lists.sr.ht/~ach/janetsh)
 
