@@ -43,14 +43,19 @@ case $target in
     redo-ifchange all
     mkdir -p "$PREFIX/bin/"
     mkdir -p "$PREFIX/lib/janetsh"
-    install ./src/shlib.so "$PREFIX/lib/janetsh/"
-    install ./src/*.janet "$PREFIX/lib/janetsh/"
+    v install ./src/shlib.so "$PREFIX/lib/janetsh/"
+    v install ./src/*.janet "$PREFIX/lib/janetsh/"
+    echo "writing $PREFIX/bin/janetsh"
     head -n 1 ./src/janetsh > "$PREFIX/bin/janetsh"
     echo "(array/concat module/paths [" >> "$PREFIX/bin/janetsh"
     echo "  [\"$PREFIX/lib/janetsh/:all:.janet\" :source]" >> "$PREFIX/bin/janetsh"
     echo "  [\"$PREFIX/lib/janetsh/:all:.:native:\" :native]])" >> "$PREFIX/bin/janetsh"
     tail -n +2 ./src/janetsh >> "$PREFIX/bin/janetsh"
-    chmod +x "$PREFIX/bin/janetsh"
+    v chmod +x "$PREFIX/bin/janetsh"
+    ;;
+  uninstall)
+    v rm -rf "$PREFIX/lib/janetsh"
+    v rm -f "$PREFIX/bin/janetsh"
     ;;
   src/readnoise/*.o)
     cfile=src/readnoise/$(basename $target .o).c
