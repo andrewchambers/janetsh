@@ -14,12 +14,12 @@ edits may be made before files are added to the gallery.
 
 ## RC files and prompts
 
-### Bash like - Andrew Chambers
+### Andrew Chambers
 
 @asciinema("EGSQZuZBD9FFfAOUtIFA10Qye" :size "small" :theme "monokai")
-@link[https://github.com/andrewchambers/janetsh/tree/master/www/bash-like-andrew-chambers.rc]{code}
+@link[https://github.com/andrewchambers/janetsh/tree/master/www/simple-andrew-chambers.rc]{code}
 
-### Bash like - Bakpakin
+### Bakpakin
 
 @asciinema("kiijaIVuo7y90rEkNwLXoPwTR" :size "small" :theme "monokai")
-@link[https://github.com/andrewchambers/janetsh/tree/master/www/bash-like-bakpakin.rc]{code}
+@link[https://github.com/andrewchambers/janetsh/tree/master/www/simple-bakpakin.rc]{code}
