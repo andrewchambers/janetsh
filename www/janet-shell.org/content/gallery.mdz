@@ -17,9 +17,9 @@ edits may be made before files are added to the gallery.
 ### Andrew Chambers
 
 @asciinema("EGSQZuZBD9FFfAOUtIFA10Qye" :size "small" :theme "monokai")
-@link[https://github.com/andrewchambers/janetsh/tree/master/www/simple-andrew-chambers.rc]{code}
+@link[https://github.com/andrewchambers/janetsh/tree/master/www/gallery/simple-andrew-chambers.rc]{code}
 
 ### Bakpakin
 
 @asciinema("kiijaIVuo7y90rEkNwLXoPwTR" :size "small" :theme "monokai")
-@link[https://github.com/andrewchambers/janetsh/tree/master/www/simple-bakpakin.rc]{code}
+@link[https://github.com/andrewchambers/janetsh/tree/master/www/gallery/simple-bakpakin.rc]{code}
