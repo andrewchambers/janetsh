@@ -49,7 +49,7 @@ typedef struct linenoiseCompletions {
 } linenoiseCompletions;
 
 typedef void(linenoiseCompletionCallback)(const char *, linenoiseCompletions *);
-typedef char*(linenoiseHintsCallback)(const char *, int *color, int *bold);
+typedef char *(linenoiseHintsCallback)(const char *, int *color, int *bold);
 typedef void(linenoiseFreeHintsCallback)(void *);
 void linenoiseSetCompletionCallback(linenoiseCompletionCallback *);
 void linenoiseSetHintsCallback(linenoiseHintsCallback *);
@@ -65,14 +65,15 @@ void linenoiseClearScreen(void);
 void linenoiseSetMultiLine(int ml);
 void linenoisePrintKeyCodes(void);
 
-typedef size_t (linenoisePrevCharLen)(const char *buf, size_t buf_len, size_t pos, size_t *col_len);
-typedef size_t (linenoiseNextCharLen)(const char *buf, size_t buf_len, size_t pos, size_t *col_len);
-typedef size_t (linenoiseReadCode)(int fd, char *buf, size_t buf_len, int* c);
+typedef size_t(linenoisePrevCharLen)(const char *buf, size_t buf_len,
+                                     size_t pos, size_t *col_len);
+typedef size_t(linenoiseNextCharLen)(const char *buf, size_t buf_len,
+                                     size_t pos, size_t *col_len);
+typedef size_t(linenoiseReadCode)(int fd, char *buf, size_t buf_len, int *c);
 
-void linenoiseSetEncodingFunctions(
-    linenoisePrevCharLen *prevCharLenFunc,
-    linenoiseNextCharLen *nextCharLenFunc,
-    linenoiseReadCode *readCodeFunc);
+void linenoiseSetEncodingFunctions(linenoisePrevCharLen *prevCharLenFunc,
+                                   linenoiseNextCharLen *nextCharLenFunc,
+                                   linenoiseReadCode *readCodeFunc);
 
 #ifdef __cplusplus
 }
