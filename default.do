@@ -57,6 +57,9 @@ case $target in
     v rm -rf "$PREFIX/lib/janetsh"
     v rm -f "$PREFIX/bin/janetsh"
     ;;
+  format)
+    v clang-format "-style=file" -i $(find ./src/ -name "*.c" -or -name "*.h")
+    ;;
   src/readnoise/*.o)
     cfile=src/readnoise/$(basename $target .o).c
     redo-ifchange $cfile $shlib_chdrs

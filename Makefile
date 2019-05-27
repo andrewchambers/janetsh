@@ -12,6 +12,6 @@ install:
 uninstall:
 	./support/do -c uninstall
 
-.PHONY: clean
-clean:
-	./support/do -c clean
+.PHONY: format
+format:
+	./support/do -c format
