@@ -1,0 +1,19 @@
+#! /bin/sh
+
+set -eu
+
+if  (test "$#" = 1 && (test "$1" = "-h" || test $1 = "--help"))
+then
+  echo "Janet shell posix compatibilty wrapper..."
+  echo "Runs /bin/sh when not interactive or unsupported options are used."
+  exit 1
+fi
+
+# If interactive, use janetsh, otherwise, use posix shell.
+if ( test -t 1 && test -t 2 && test "$#" = 0) \
+  || (test "$#" = 1 && test "$1" = "-i")
+then
+  exec janetsh
+fi
+
+exec /bin/sh $@

@@ -45,6 +45,7 @@ case $target in
     mkdir -p "$PREFIX/lib/janetsh"
     v install ./src/shlib.so "$PREFIX/lib/janetsh/"
     v install ./src/*.janet "$PREFIX/lib/janetsh/"
+    v install ./src/janetsh-posix-wrapper "$PREFIX/bin"
     echo "writing $PREFIX/bin/janetsh"
     head -n 1 ./src/janetsh > "$PREFIX/bin/janetsh"
     echo "(array/concat module/paths [" >> "$PREFIX/bin/janetsh"
