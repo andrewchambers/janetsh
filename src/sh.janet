@@ -578,7 +578,7 @@
     :keyword true
     false))
 
-(defn- new-cd-builtin
+(defn- make-cd-builtin
   []
   @{
     :pre-fork
@@ -595,7 +595,7 @@
     :error nil 
   })
 
-(defn- new-clear-builtin
+(defn- make-clear-builtin
   []
   @{
     :pre-fork
@@ -606,14 +606,22 @@
         (file/write stdout "\x1b[H\x1b[2J"))
   })
 
+# Table of builtin name to constructor
+# function for builtin objects.
+#
+# A builtin has two methods:
+# :pre-fork [self args]
+# :post-fork [self args]
+(var *builtins* @{
+  "clear" make-clear-builtin
+  "cd" make-cd-builtin
+})
+
 (defn- replace-builtins
   [args]
-  (match (first args)
-    "cd"
-      (put args 0 (new-cd-builtin))
-    "clear"
-      (put args 0 (new-clear-builtin))
-    args))
+  (when-let [bi (*builtins* (first args))]
+    (put args 0 (bi)))
+  args)
 
 (defn parse-job
   [& forms]
