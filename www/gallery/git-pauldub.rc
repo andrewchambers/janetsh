@@ -1,0 +1,80 @@
+
+(def- escape-sequences '{ 
+ :default 39
+ :black 30
+ :red 31
+ :green 32
+ :yellow 32
+ :blue 34
+ :magenta 35
+ :cyan 36
+ :light-gray 37
+ :dark-gray 90 :light-red 91
+ :light-green 92
+ :light-yellow 93
+ :light-blue 94
+ :light-magenta 95
+ :light-cyan 96
+ :white 97 
+ :reset 0
+ :bold 1
+ :dim 2
+ :underline 4
+ :blink 5
+ :reverse 7
+ :hidden 8 })
+
+(defn color [& parts]
+  "Allows to color terminal output using shell escape code in a DSL-like fashion."
+  (string 
+    ;(map (fn [part]
+            (if (keyword? part)
+              (string "\e[" (get escape-sequences part) "m")
+              (string part))) parts)))
+
+(defn shortcwd []
+  "Formats the current working directory." 
+  (let [cwd (os/cwd)]
+    (if (= cwd (string "/home/" (os/getenv "USER")))
+      "~"
+      (sh/$$_ basename [cwd]))))
+
+(var *git-prefix* (color :bold :blue "git:(" :red))
+(var *git-suffix* "")
+(var *git-dirty* (color :blue ") " :light-yellow "✗ "))
+(var *git-clean* (color :blue ") "))
+
+(defn- has-git? []
+  "Tests wether the current working directory is a git repository or not."
+  (sh/$?? git rev-parse --short HEAD :1>/dev/null :2>&1))
+
+(defn- git-dirty []
+  "Returns an indicator if the git repository is dirty"
+  (if (empty? (first (sh/$$_? git status  --porcelain --ignore-submodules=dirty --untracked-files=no :2>/dev/null | tail -n1)))
+    *git-clean*
+    *git-dirty*))
+
+(defn- git-ref []
+  "Returns the current repository ref or branch"
+  (let [ref (sh/$$_ git symbolic-ref HEAD :2>/dev/null)
+        commit (sh/$$_ git rev-parse --short HEAD :2>/dev/null)]
+    (if (empty? ref)
+      commit
+      (string/replace "refs/heads/" "" ref))))
+
+(defn git-info []
+  "Formats git information for janetsh prompt."
+  (if (has-git?)
+    (color *git-prefix* :red (git-ref) (git-dirty) *git-suffix* )
+    ""))
+
+(set *get-prompt*
+ (fn get-prompt [p]
+  (color :bold 
+   :light-magenta "➜  "
+   :cyan (shortcwd) " " 
+   (git-info)
+   (parser/state p)
+   :reset)))
+
+(set *hist-file* (first (sh/expand "~/.janetsh.hist")))
