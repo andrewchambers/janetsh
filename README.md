@@ -179,6 +179,30 @@ $ (sh/terminate-all-jobs)
 $ (sh/disown-job (sh/$ sleep 60 &))
 ```
 
+# Custom builtin shell commands
+
+Here is an example of defining a new builtin shell command.
+```
+(defn- make-my-builtin
+  []
+  @{
+    :pre-fork
+      (fn pre-fork
+        [self args]
+        (print "hello from shell process"))
+    :post-fork
+      (fn post-fork
+        [self args]
+        (print "hello from child process"))
+  })
+
+(put sh/*builtins* "my-builtin" make-my-builtin)
+```
+It is important to catch any errors and only report them
+from the child process. This means builtins can manipulate the
+shell internal state, but still behave like regular processes
+for the purpose of exit codes, pipes and job control.
+
 # Installation
 
 For the default build you will need pre released janet 1.0.0 built from source, readline and pkg-config installed on your system, then you can run:

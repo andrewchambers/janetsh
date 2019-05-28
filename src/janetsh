@@ -3,7 +3,6 @@
 (import shlib)
 (import sh)
 
-
 (var *sysrc-file* "/etc/janetsh.rc")
 (var *rc-file* (string (os/getenv "HOME") "/.janetsh.rc"))
 (var *hist-file* nil)
@@ -62,7 +61,6 @@
 (var *get-prompt*
   (fn *get-prompt* [p]
     (string (os/cwd) " " (parser/state p) "$ ")))
-
 
 (if *script*
   (sh/init true)
