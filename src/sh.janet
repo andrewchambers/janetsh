@@ -457,7 +457,7 @@
       (file/flush stderr)
       (os/exit 1))))
 
-(defn- job-output [j]
+(defn- job-output-rc [j]
   (let [[fd-a fd-b] (pipe)
         output (buffer/new 1024)
         readbuf (buffer/new-filled 1024)] 
@@ -471,9 +471,13 @@
           (buffer/push-string output (buffer/slice readbuf 0 n)))))
     (close fd-a)
     (wait-for-job j)
-    (if (= 0 (job-exit-code j))
-      (string output)
-      (error "job failed!"))))
+    [(string output) (job-exit-code j)]))
+
+(defn- job-output [j]
+  (let [[output rc] (job-output-rc j)]
+    (if (= 0 rc)
+      output
+      (error (string "job failed! (status=" rc ")")))))
 
 (defn- get-home
   []
@@ -781,6 +785,35 @@
   [& forms]
   (let [out-forms (fn-$$ forms)]
     ~(,string/trimr ,out-forms)))
+
+(defn- fn-$$?
+  [forms]
+    (let [[j fg] (parse-job ;forms)]
+      (when (not fg)
+        (error "$$? does not support background jobs"))
+      ~(,job-output-rc ,j)))
+
+(defmacro $$?
+  "Execute a shell job (pipeline) in the foreground with 
+   a set of optional redirections for each process returning
+   a tuple of stdout and the job exit code.\n\n
+
+   See the $ documenation for examples and more detailed information about the
+   accepted syntax."
+  [& forms]
+  (fn-$$? forms))
+
+(defmacro $$_?
+  "Execute a shell job (pipeline) in the foreground with 
+   a set of optional redirections for each process returning
+   a tuple of the trimmed stdout and the job exit code.\n\n
+
+   See the $ documenation for examples and more detailed information about the
+   accepted syntax."
+  [& forms]
+  ~(let [[out rc] ,(fn-$$? forms)]
+    [(,string/trimr out) rc]))
+
 
 # References
 # [1] https://www.gnu.org/software/libc/manual/html_node/Implementing-a-Shell.html

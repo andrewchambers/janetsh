@@ -23,3 +23,11 @@ edits may be made before files are added to the gallery.
 
 @asciinema("kiijaIVuo7y90rEkNwLXoPwTR" :size "small" :theme "monokai")
 @link[https://github.com/andrewchambers/janetsh/tree/master/www/gallery/simple-bakpakin.rc]{code}
+
+### pauldub
+
+Shell with git prompt:
+
+@asciinema("wK44s6VfhL3g7IYVfJbcVGIlq" :size "small" :theme "monokai")
+@link[https://github.com/andrewchambers/janetsh/tree/master/www/gallery/git-paulsub.rc]{code}
+
