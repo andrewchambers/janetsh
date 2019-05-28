@@ -28,7 +28,7 @@ Help develop janetsh [donate via paypal](https://www.paypal.com/cgi-bin/webscr?c
 
 [![asciicast](https://asciinema.org/a/248403.svg)](https://asciinema.org/a/248403)
 
-[demo source code](./demos/demos.janet)
+[demo source code](./demos/demos.janet) [demo rc file](https://github.com/andrewchambers/janetsh/blob/master/www/gallery/simple-andrew-chambers.rc)
 
 # Examples
 
