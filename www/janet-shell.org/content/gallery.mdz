@@ -29,5 +29,5 @@ edits may be made before files are added to the gallery.
 Shell with git prompt:
 
 @asciinema("wK44s6VfhL3g7IYVfJbcVGIlq" :size "small" :theme "monokai")
-@link[https://github.com/andrewchambers/janetsh/tree/master/www/gallery/git-paulsub.rc]{code}
+@link[https://github.com/andrewchambers/janetsh/tree/mater/www/gallery/git-pauldub.rc]{code}
 
