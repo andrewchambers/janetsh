@@ -822,6 +822,36 @@
   ~(let [[out rc] ,(fn-$$? forms)]
     [(,string/trimr out) rc]))
 
+(defn in-env*
+  "Function form of in-env."
+  [env-vars f]
+  (let [old-vars @{}]
+    (each k (keys env-vars)
+      (def new-v (env-vars k))
+      (def old-v (os/getenv k))
+      (when (string? new-v)
+        (put old-vars k (if old-v old-v :unset))
+        (os/setenv k new-v)))
+    (var haderr false)
+    (var err nil)
+    (var result nil)
+    (try
+      (set result (f))
+      ([e] (set haderr true) (set err e)))
+    (each k (keys old-vars)
+      (def old-v (old-vars k))
+      (os/setenv k (if (= old-v :unset) nil old-v)))
+    (when haderr
+      (error err))
+    result))
+
+(defmacro in-env
+  "Run forms with os environment variables set
+   to the keys and values of env-vars. The os environment
+   is restored before returning the result."
+  [env-vars & forms]
+  (tuple in-env* env-vars (tuple 'fn [] ;forms)))
+
 
 # References
 # [1] https://www.gnu.org/software/libc/manual/html_node/Implementing-a-Shell.html

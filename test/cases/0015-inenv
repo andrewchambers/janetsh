@@ -1,0 +1,34 @@
+#! /usr/bin/env janetsh
+
+(import sh)
+
+(defn fail 
+  []
+  (error (string "fail: FOO=" (os/getenv "FOO"))))
+
+(when (not= (os/getenv "FOO") nil)
+  (fail))
+
+(when (not= (sh/in-env @{} (os/getenv "FOO")) nil)
+  (fail))
+
+(when (not= (sh/in-env @{"FOO" "BAR"} (os/getenv "FOO")) "BAR")
+  (fail))
+
+(when (not= (sh/in-env @{} (os/getenv "FOO")) nil)
+  (fail))
+
+(try 
+  (sh/in-env @{"FOO" "BAR"} (error "..."))
+  ([e] nil))
+
+(when (not= (sh/in-env @{} (os/getenv "FOO")) nil)
+  (fail))
+
+(os/setenv "FOO" "BARBAR")
+
+(when (not= (sh/in-env @{"FOO" "BAR"} (os/getenv "FOO")) "BAR")
+  (fail))
+
+(when (not= (os/getenv "FOO") "BARBAR")
+  (fail))
