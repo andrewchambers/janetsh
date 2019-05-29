@@ -585,7 +585,11 @@
       (fn builtin-cd
         [self args]
         (try
-          (os/cd ;args)
+          (do
+            (var args (if (empty? args)
+                        [(os/getenv "HOME")]
+                        args))
+            (os/cd ;args))
           ([e] (put self :error e))))
     :post-fork
       (fn builtin-cd

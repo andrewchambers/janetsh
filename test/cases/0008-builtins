@@ -3,4 +3,5 @@
 (import sh)
 
 (when (not (sh/$?? cd ./.)) (error "fail"))
+(when (not= (do (sh/$?? cd) (os/cwd)) (os/getenv "HOME")) (error "fail"))
 (when (sh/$?? cd ./not-exists :2>/dev/null) (error "fail"))
