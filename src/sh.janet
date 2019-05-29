@@ -587,7 +587,9 @@
         (try
           (do
             (var args (if (empty? args)
-                        [(os/getenv "HOME")]
+                        (if-let [home (os/getenv "HOME")]
+                          [home]
+                          (error "cd: HOME not set"))
                         args))
             (os/cd ;args))
           ([e] (put self :error e))))
