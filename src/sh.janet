@@ -29,6 +29,9 @@
 # signals disabled...
 (var unsafe-child-cleanup-array nil)
 
+# Stores defined aliases
+(var *aliases* @{})
+
 # Reentrancy counter for shell signals...
 (var disable-cleanup-signals-count 0)
 
@@ -644,6 +647,130 @@
     :keyword true
     false))
 
+<<<<<<< HEAD
+=======
+(defn- make-cd-builtin
+  []
+  @{
+    :pre-fork
+      (fn builtin-cd
+        [self args]
+        (try
+          (os/cd ;args)
+          ([e] (put self :error e))))
+    :post-fork
+      (fn builtin-cd
+        [self args]
+        (when (self :error)
+          (error (self :error))))
+    :error nil 
+  })
+
+(defn- make-clear-builtin
+  []
+  @{
+    :pre-fork
+      (fn builtin-clear [self args] nil)
+    :post-fork
+      (fn builtin-clear
+        [self args]
+        (file/write stdout "\x1b[H\x1b[2J"))
+  })
+
+(defn- make-alias-builtin
+  []
+  @{
+    :pre-fork
+      (fn builtin-alias [self args]
+        (var fst (first args))
+        (cond
+           (= fst "-h") nil
+           (empty? args) nil
+           (and (= (length args) 1) (= (*aliases* fst) nil))
+             (put self :error (string "alias: " fst " not found"))
+           (= (length args) 1) nil
+
+           # put specific alias
+           (when-let [alias fst
+                      cmd (tuple/slice args 1)]
+             (put *aliases* alias cmd))))
+    :post-fork
+      (fn builtin-alias [self args]
+        (var fst (first args))
+        (cond
+          (self :error) (error (self :error))
+          (= fst "-h")
+            (file/write stdout "alias name [commands]\n")
+          (empty? args)
+            (each [alias cmd] (pairs *aliases*)
+              (file/write stdout
+                (string "alias " alias " " (string/join cmd " ") "\n")))
+          (= (length args) 1)
+            (when-let [alias fst
+                       cmd (*aliases* alias)]
+              (file/write stdout
+                (string "alias " alias " " (string/join cmd " ") "\n")))))
+    :error nil
+  })
+
+(defn- make-unalias-builtin
+  []
+  @{
+    :pre-fork
+      (fn builtin-unalias [self args]
+        (var fst (first args))
+        (case fst
+          nil nil
+          "-h" nil
+          "-a"
+            # unalias all
+            (each alias (keys *aliases*)
+              (put *aliases* alias nil))
+
+          (each alias args
+            (if-not (nil? (*aliases* alias))
+              (put *aliases* alias nil)
+              (put self :error (string "unalias: " fst " not found")))
+            )))
+    :post-fork
+      (fn builtin-unalias [self args]
+        (var fst (first args))
+        (case fst
+          nil
+            (print "unalias [-a] name [name ...]")
+          "-h"
+            (print "unalias [-a] name [name ...]")
+          "-a"
+          (self :error) (error (self :error))))
+    :error nil
+  })
+
+# Table of builtin name to constructor
+# function for builtin objects.
+#
+# A builtin has two methods:
+# :pre-fork [self args]
+# :post-fork [self args]
+(var *builtins* @{
+  "clear" make-clear-builtin
+  "cd" make-cd-builtin
+  "alias" make-alias-builtin
+  "unalias" make-unalias-builtin
+})
+
+(defn- replace-builtins
+  [args]
+  (when-let [bi (*builtins* (first args))]
+    (put args 0 (bi)))
+  args)
+
+(defn- replace-aliases
+    [args]
+  (when-let [bi (*aliases* (first args))]
+    (put args 0 bi))
+  args)
+
+>>>>>>> Add support for shell aliases
 (defn parse-job
   [& forms]
   (var state :env)
@@ -705,7 +832,9 @@
     (error "empty shell job"))
   
   (each proc (job :procs)
-    (put proc :args (tuple replace-builtins (tuple flatten (proc :args)))))
+    (put proc :args
+      (tuple replace-builtins (tuple flatten
+        (tuple replace-aliases (tuple flatten (proc :args)))))))
 
   [job fg])
 
