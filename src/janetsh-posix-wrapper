@@ -16,4 +16,4 @@ then
   exec janetsh
 fi
 
-exec /bin/sh $@
+exec /bin/sh "$@"
