@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <assert.h>
 #include <termios.h>
+#include <string.h>
 #include <errno.h>
 #include <signal.h>
 #include <sys/types.h>
