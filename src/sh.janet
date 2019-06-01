@@ -91,6 +91,7 @@
 (defn- new-proc []
   @{
     :args @[]         # A list of arguments used to start the proc. 
+    :env @{}          # New environment variables to set in proc.
     :redirs @[]       # A list of 3 tuples. [fd|path ">"|"<"|">>" fd|path] 
     :pid nil          # PID of process after it has been started.
     :termsig nil      # Signal used to terminate job.
@@ -277,7 +278,11 @@
     (continue-job j)))
 
 (defn- exec-proc
-  [args redirs]
+  [args env redirs]
+  
+  (each ev (pairs env)
+    (os/setenv (ev 0) (ev 1)))
+
   (each r redirs
     (var sinkfd (get r 0))
     (var src  (get r 2))
@@ -425,7 +430,7 @@
                     @[STDOUT_FILENO ">" outfd]
                     @[STDERR_FILENO ">"  errfd]] (proc :redirs)))
                 
-                (exec-proc (proc :args) redirs)
+                (exec-proc (proc :args) (proc :env) redirs)
                 (error "unreachable"))
             ([e] (do (file/write stderr (string e "\n")) (os/exit 1)))))
 
@@ -515,6 +520,57 @@
   (when (= s "~") (set s (get-home)))
   (glob (string ;(peg/match expand-parser s))))
 
+(defn- make-cd-builtin
+  []
+  @{
+    :pre-fork
+      (fn builtin-cd
+        [self args]
+        (try
+          (do
+            (var args (if (empty? args)
+                        (if-let [home (os/getenv "HOME")]
+                          [home]
+                          (error "cd: HOME not set"))
+                        args))
+            (os/cd ;args))
+          ([e] (put self :error e))))
+    :post-fork
+      (fn builtin-cd
+        [self args]
+        (when (self :error)
+          (error (self :error))))
+    :error nil
+  })
+
+(defn- make-clear-builtin
+  []
+  @{
+    :pre-fork
+      (fn builtin-clear [self args] nil)
+    :post-fork
+      (fn builtin-clear
+        [self args]
+        (file/write stdout "\x1b[H\x1b[2J"))
+  })
+
+# Table of builtin name to constructor
+# function for builtin objects.
+#
+# A builtin has two methods:
+# :pre-fork [self args]
+# :post-fork [self args]
+(var *builtins* @{
+  "clear" make-clear-builtin
+  "cd" make-cd-builtin
+})
+
+(defn- replace-builtins
+  [args]
+  (when-let [bi (*builtins* (first args))]
+    (put args 0 (bi)))
+  args)
+
 (defn- norm-redir
   [& r]
   (var @[a b c] r)
@@ -536,10 +592,20 @@
     :main (replace :redir ,norm-redir)
   }))
 
-(defn parse-redir
+(defn- parse-redir
   [r]
   (let [match (peg/match redir-parser r)]
     (when match (first match))))
+
+
+(def- env-var-parser (peg/compile
+  ~{
+    :main (sequence (capture (some (sequence (not "=") 1))) "=" (capture (any 1)))
+  }))
+
+(defn- parse-env-var
+  [s]
+  (peg/match env-var-parser s))
 
 (defn- form-to-arg
   "Convert a form to a form that is
@@ -578,86 +644,57 @@
     :keyword true
     false))
 
-(defn- make-cd-builtin
-  []
-  @{
-    :pre-fork
-      (fn builtin-cd
-        [self args]
-        (try
-          (do
-            (var args (if (empty? args)
-                        (if-let [home (os/getenv "HOME")]
-                          [home]
-                          (error "cd: HOME not set"))
-                        args))
-            (os/cd ;args))
-          ([e] (put self :error e))))
-    :post-fork
-      (fn builtin-cd
-        [self args]
-        (when (self :error)
-          (error (self :error))))
-    :error nil 
-  })
-
-(defn- make-clear-builtin
-  []
-  @{
-    :pre-fork
-      (fn builtin-clear [self args] nil)
-    :post-fork
-      (fn builtin-clear
-        [self args]
-        (file/write stdout "\x1b[H\x1b[2J"))
-  })
-
-# Table of builtin name to constructor
-# function for builtin objects.
-#
-# A builtin has two methods:
-# :pre-fork [self args]
-# :post-fork [self args]
-(var *builtins* @{
-  "clear" make-clear-builtin
-  "cd" make-cd-builtin
-})
-
-(defn- replace-builtins
-  [args]
-  (when-let [bi (*builtins* (first args))]
-    (put args 0 (bi)))
-  args)
-
 (defn parse-job
   [& forms]
-  (var state :proc)
+  (var state :env)
   (var job (new-job))
-  (var proc nil)
+  (var proc (new-proc))
   (var fg true)
   (var pending-redir nil)
-  (defn reset-proc [] 
-    (set proc (new-proc)))
-  (reset-proc)
+  (var pending-env-assign nil)
+  
+  (defn handle-proc-form
+    [f]
+    (cond
+      (= '| f) (do 
+                 (array/push (job :procs) proc)
+                 (set state :env)
+                 (set proc (new-proc)))
+      (= '& f) (do (set fg false) (set state :done))
+      
+      (let [redir (parse-redir (string f))]
+        (if (and (arg-symbol? f) redir)
+          (if (redir 2)
+            (array/push (proc :redirs) redir)
+            (do (set pending-redir redir) (set state :redir)))
+          (array/push (proc :args) (form-to-arg f))))))
+  
   (each f forms
     (match state
+      :env
+        (if-let [ev (and (symbol? f) (parse-env-var (string f)))
+                 [e v] ev]
+          (if (empty? v)
+            (do (set pending-env-assign e)
+                (set state :env2))
+            (put (proc :env) e v))
+          (do
+            (set state :proc)
+            (handle-proc-form f)))
+      :env2
+         (do
+          (put (proc :env) pending-env-assign 
+            (if (arg-symbol? f)
+              (string f)
+              (tuple string f)))
+          (set state :env))
       :proc 
-        (cond
-          (= '| f) (do 
-                     (array/push (job :procs) proc)
-                     (reset-proc))
-          (= '& f) (do (set fg false) (set state :done))
-          
-          (let [redir (parse-redir (string f))]
-            (if (and (arg-symbol? f) redir)
-              (if (redir 2)
-                (array/push (proc :redirs) redir)
-                (do (set pending-redir redir) (set state :redir)))
-              (array/push (proc :args) (form-to-arg f)))))
-      :redir (do
-               (put pending-redir 2 (form-to-arg f))
-               (array/push (proc :redirs) pending-redir)
-               (set state :proc))
+        (handle-proc-form f)
+      :redir
+        (do
+          (put pending-redir 2 (form-to-arg f))
+          (array/push (proc :redirs) pending-redir)
+          (set state :proc))
       :done (error "unexpected input after command end")
       (error "bad parser state")))
   (when (= state :redir)
