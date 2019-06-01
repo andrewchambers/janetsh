@@ -12,7 +12,6 @@
 (when (not= (sh/$$_ echo hello) "hello")
   (error "fail"))
 
-
 (when (not= (sh/$$? echo hello) ["hello\n" 0] )
   (error "fail"))
 
@@ -58,3 +57,17 @@
 (sh/wait-for-job j1)
 (sh/terminate-all-jobs)
 (sh/wait-for-job j2)
+
+
+(sh/$ FOO=123 BAR="456" BAZ= abc 
+  (fn [&]
+    (when (not= (os/getenv "FOO") "123") (error "fail1"))
+    (when (not= (os/getenv "BAR") "456") (error "fail2"))
+    (when (not= (os/getenv "BAZ") "abc") (error "fail3"))))
+
+(sh/$ FOO=456 true | FOO=123 BAR="456" BAZ= abc 
+  (fn [&]
+    (when (not= (os/getenv "FOO") "123") (error "fail"))
+    (when (not= (os/getenv "BAR") "456") (error "fail"))
+    (when (not= (os/getenv "BAZ") "abc") (error "fail"))))
+
