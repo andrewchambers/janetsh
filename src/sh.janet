@@ -14,6 +14,11 @@
 # All current jobs under control of the shell.
 (var jobs nil)
 
+# Last job to be in the foreground.
+# This is the implicit argument to the 'fg'
+# builtin.
+(var *previous-foreground-job* nil)
+
 # Mapping of pid to process tables.
 (var pid2proc nil)
 
@@ -215,6 +220,7 @@
   j)
 
 (defn job-from-pgid [pgid]
+  "Given a pgid, find the associated job table."
   (find (fn [j] (= (j :pgid)) pgid) jobs))
 
 (defn terminate-all-jobs
@@ -258,6 +264,9 @@
   [j]
   (when (not on-tty)
     (error "cannot move job to foreground when not on a tty."))
+  (when (job-complete? j)
+    (error "job has already completed."))
+
   (set shell-tmodes (tcgetattr STDIN_FILENO))
   (when (j :tmodes)
     (tcsetattr STDIN_FILENO TCSADRAIN (j :tmodes)))
@@ -269,7 +278,14 @@
   (tcsetpgrp STDIN_FILENO (getpgrp))
   (put j :tmodes (tcgetattr STDIN_FILENO))
   (tcsetattr STDIN_FILENO TCSADRAIN shell-tmodes)
+  (set *previous-foreground-job* j)
   (job-exit-code j))
+
+(defn fg
+  "Put *previous-foreground-job* in the foreground."
+  []
+  (when *previous-foreground-job*
+    (fg-job *previous-foreground-job*)))
 
 (defn bg-job
   "Resume a stopped job in the background."
