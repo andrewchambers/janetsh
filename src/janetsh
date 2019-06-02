@@ -10,6 +10,8 @@
 (var *parens* false)
 (var *handleopts* true)
 
+(def- user-env (fiber/getenv (fiber/current)))
+
 (defn- help-handler
   [&]
   (print "usage: janetsh [options] [script] [args]")
@@ -49,7 +51,7 @@
   (def arg (get process/args i))
   (if (and *handleopts* (= "-" (string/slice arg 0 1)))
     (+= i (dohandler arg i))
-    (do 
+    (do
       (array/push new-args arg)
       (+= i 1)
       (when (not *script*)
@@ -84,27 +86,41 @@
           (filter desired-file?)
           (map (fn [exp] (string/slice (string/slice exp (length (first single)))))))))
 
-    (defn- completion-want-bin?
+    (defn- completion-wants
       [line start]
       (var i (dec start))
-      (var want-bin true)
+      (var wants :bin)
       (while (>= i 0)
-        (when (= (line i) ("|" 0))
-          (break))
-        (when (not= (line i) (" " 0))
-          (set want-bin false)
-          (break))
-        (-- i))
-      want-bin)
+        (cond
+          (= (line i) ("|" 0))
+          (break)
+
+          (= (line i) ("(" 0))
+          (do (set wants :function)
+              (break))
+
+          (not= (line i) (" " 0))
+          (do (set wants nil)
+              (break))
+
+          (-- i)))
+      wants)
 
     (var completions @[])
     (var to-expand (string (string/slice line start end)))
     (each completion (scan-for-completions to-expand false)
       (array/push completions (string to-expand completion)))
-    (when (and (not (string/find "/" to-expand)) (completion-want-bin? line start))
-      (each path-ent (string/split ":" (os/getenv "PATH"))
-        (each completion (scan-for-completions (string path-ent "/" to-expand) true)
-          (array/push completions (string to-expand completion)))))
+    (match (completion-wants line start)
+      :bin
+       (when (not (string/find "/" to-expand))
+         (each path-ent (string/split ":" (os/getenv "PATH"))
+           (each completion (scan-for-completions (string path-ent "/" to-expand) true)
+             (array/push completions (string to-expand completion)))))
+      :function
+       (set completions
+            (->> (array/concat (all-bindings user-env) (all-dynamics user-env))
+                 (map string)
+                 (filter (fn [s] (string/has-prefix? to-expand s))))))
     completions))
 
 (defn- getline [prompt buf]
@@ -144,8 +160,6 @@
 (def do-lines sh/do-lines)
 (def out-lines sh/out-lines)
 
-(def- user-env (fiber/getenv (fiber/current)))
-
 (var *janetsh-repl*
   (fn *janetsh-repl*
     []
@@ -153,9 +167,9 @@
       (try
         (shlib/input/history-load *hist-file*)
         ([e] nil)))
-    
+
     (repl getchunk nil user-env)
-    
+
     (when *hist-file*
       (shlib/input/history-save *hist-file*))))
 
@@ -183,7 +197,7 @@
           (when *script*
             # Don't limp along in script mode if the whole system is broken.
             (os/exit 1))))))
-    
+
     (if *script*
       (import* *script* :prefix "" :exit true)
       (run-interactive)))
