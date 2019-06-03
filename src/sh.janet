@@ -619,7 +619,7 @@
             name (first expanded)
             rest (tuple/slice expanded 1)
             _ (not (empty? rest))]
-      (put (,(fn [] *aliases*)) name rest)
+      (put ',*aliases* name rest)
       (error "alias expects at least two expanded arguments")))
 
 (defn unalias [name]
@@ -752,7 +752,7 @@
    (sh/$ ls *.txt | cat )\n
    (sh/$ ls @[\"/\" [\"/usr\"]])\n
    (sh/$ ls (os/cwd))
-   (sh/$ ls (os/cwd) >/dev/null :2>&1 )\n
+   (sh/$ ls (os/cwd) >/dev/null :2>'1 )\n
    (sh/$ (fn [args] (pp args)) hello world | cat )\n
    (sh/$ \"ls\" (sh/expand \"*.txt\"))\n
    (sh/$ sleep (+ 1 5) &)\n"

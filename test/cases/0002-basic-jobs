@@ -27,11 +27,11 @@
 (when (not= (sh/$$_ echo (+ 1 2 3)) "6")
   (error "fail"))
 
-(sh/$ echo hello1 :2> ./err.txt :1>&2)
+(sh/$ echo hello1 :2> ./err.txt :1>'2)
 (when (not= (string (slurp "err.txt")) "hello1\n")
  (error "fail"))
 
-(sh/$ echo hello2 :2> ./err.txt :1>&2)
+(sh/$ echo hello2 :2> ./err.txt :1>'2)
 (when (not= (string (slurp "err.txt")) "hello2\n")
  (error "fail"))
 
