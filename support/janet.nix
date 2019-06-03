@@ -2,13 +2,13 @@
 
 stdenv.mkDerivation rec {
   name = "janet";
-  version = "1.0.0-prerelease";
+  version = "prerelease";
 
   src = fetchFromGitHub {
     owner = "janet-lang";
     repo = "janet";
-    rev = "4d5a95784a076a03a437b2aeff19cd0544f19f50";
-    sha256 = "0v121y8hga1rmjzcm0ydjfv0v9d60hhlyy73ql1p2wxccsnzjll7";
+    rev = "c21eaa5474bb84a25c5d06645632aa851b37ef20";
+    sha256 = "0agbq0spdjj79mx4y5awa6b4k2jj8j0xv2if594h81jlsi3dwb83";
   };
 
   JANET_BUILD=''\"release\"'';

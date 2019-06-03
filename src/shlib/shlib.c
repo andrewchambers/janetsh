@@ -426,8 +426,8 @@ static char *longest_common_prefix(char **strs, int n) {
 }
 
 static JanetFunction *completion_janet_function = NULL;
-static char **shlib_readline_attempted_completion_function(const char *text,
-                                                           int start, int end) {
+static char **shlib_readline_attempted_completion(const char *text, int start,
+                                                  int end) {
   if (!completion_janet_function)
     return NULL;
 
@@ -467,9 +467,8 @@ static char **shlib_readline_attempted_completion_function(const char *text,
           continue;
 
         if (!rlcompletions) {
-          // We need at least space for
-          // substitution + matches + null
-          // libeditline at least assumes on this many NULLs, it
+          // We need at least space for substitution + matches + null
+          // libeditline assumes at least this many NULLs.
           rlcompletions = calloc(ca->count + 2, sizeof(char *));
           nrlcompletions = 0;
         }
@@ -508,8 +507,7 @@ static Janet input_readline(int32_t argc, Janet *argv) {
 
   Janet ret = janet_wrap_nil();
 
-  rl_attempted_completion_function =
-      shlib_readline_attempted_completion_function;
+  rl_attempted_completion_function = shlib_readline_attempted_completion;
 
   const char *prompt = janet_getcstring(argv, 0);
   completion_janet_function = janet_getfunction(argv, 1);
