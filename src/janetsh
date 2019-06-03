@@ -112,15 +112,19 @@
       (array/push completions (string to-expand completion)))
     (match (completion-wants line start)
       :bin
-       (when (not (string/find "/" to-expand))
-         (each path-ent (string/split ":" (os/getenv "PATH"))
-           (each completion (scan-for-completions (string path-ent "/" to-expand) true)
-             (array/push completions (string to-expand completion)))))
+       (do
+         (array/concat completions
+           (->> (keys sh/*builtins*)
+                (filter (fn [bi] (string/has-prefix? to-expand bi)))))
+         (when (not (string/find "/" to-expand))
+           (each path-ent (string/split ":" (os/getenv "PATH"))
+             (each completion (scan-for-completions (string path-ent "/" to-expand) true)
+               (array/push completions (string to-expand completion))))))
       :function
        (set completions
-            (->> (array/concat (all-bindings user-env) (all-dynamics user-env))
-                 (map string)
-                 (filter (fn [s] (string/has-prefix? to-expand s))))))
+          (->> (all-bindings user-env)
+               (map string)
+               (filter (fn [s] (string/has-prefix? to-expand s))))))
     completions))
 
 (defn- getline [prompt buf]
