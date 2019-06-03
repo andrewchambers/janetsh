@@ -73,13 +73,15 @@
     [line start end]
 
     (defn- scan-for-completions
-      [prefix want-bin]
+      [prefix &opt modes permissions]
       (defn desired-file?
         [p]
-        (let [stat (os/stat p)]
-          (if want-bin
-            (and stat (= (stat :mode) :file) (string/find "x" (stat :permissions)))
-            stat)))
+        (when-let [stat (os/stat p)]
+          (default modes @[:file :directory])
+          (and (find (fn [m] (= m (stat :mode))) modes)
+               (if permissions
+                 (string/find permissions (stat :permissions))
+                 true))))
       (var single (sh/expand prefix))
       (when (= (length single) 1)
         (->> (sh/expand (string prefix "*"))
@@ -87,9 +89,9 @@
           (map (fn [exp] (string/slice (string/slice exp (length (first single)))))))))
 
     (defn- completion-wants
-      [line start]
+      [line start to-expand]
       (var i (dec start))
-      (var wants :bin)
+      (var wants (if (string/find "/" to-expand) :local-bin :bin))
       (while (>= i 0)
         (cond
           (= (line i) ("|" 0))
@@ -100,7 +102,7 @@
               (break))
 
           (not= (line i) (" " 0))
-          (do (set wants nil)
+          (do (set wants :local-file)
               (break))
 
           (-- i)))
@@ -108,18 +110,22 @@
 
     (var completions @[])
     (var to-expand (string (string/slice line start end)))
-    (each completion (scan-for-completions to-expand false)
-      (array/push completions (string to-expand completion)))
-    (match (completion-wants line start)
+    (match (completion-wants line start to-expand)
+      :local-file
+       (each completion (scan-for-completions to-expand)
+         (array/push completions (string to-expand completion)))
+      :local-bin
+       (each completion (scan-for-completions to-expand @[:file :directory] "x")
+         (array/push completions (string to-expand completion)))
       :bin
        (do
          (array/concat completions
            (->> (keys sh/*builtins*)
                 (filter (fn [bi] (string/has-prefix? to-expand bi)))))
-         (when (not (string/find "/" to-expand))
-           (each path-ent (string/split ":" (os/getenv "PATH"))
-             (each completion (scan-for-completions (string path-ent "/" to-expand) true)
-               (array/push completions (string to-expand completion))))))
+         (each path-ent (string/split ":" (os/getenv "PATH"))
+           (each completion (scan-for-completions (string path-ent "/" to-expand)
+                                                  @[:file] "x")
+             (array/push completions (string to-expand completion)))))
       :function
        (set completions
           (->> (all-bindings user-env)
