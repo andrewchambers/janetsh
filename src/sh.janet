@@ -903,6 +903,67 @@
     :error nil
   })
 
+# Dir stack used by 'dirs', 'pushd' and 'popd'
+(var *dirs* @[])
+
+(defn- make-dirs-builtin
+  []
+  @{
+    :pre-fork
+      (fn builtin-dirs
+        [self args]
+        nil)
+    :post-fork
+      (fn builtin-dirs
+        [self args]
+        (each d (reverse *dirs*)
+          (pp d)))
+    :error nil
+  })
+
+(defn- make-pushd-builtin
+  []
+  @{
+    :pre-fork
+      (fn builtin-pushd
+        [self args]
+        (try
+          (do
+            (when (> (length args) 1)
+              (error "expected: pushd [DIR]"))
+            (def owd (os/cwd))
+            (os/cd (or (first args) (os/getenv "HOME") (error "pushd: HOME not set")))
+            (array/push *dirs* owd))
+          ([e] (put self :error e))))
+    :post-fork
+      (fn builtin-pushd
+        [self args]
+        (when (self :error)
+          (error (self :error))))
+    :error nil
+  })
+
+(defn- make-popd-builtin
+  []
+  @{
+    :pre-fork
+      (fn builtin-popd [self args]
+        (try
+          (cond
+            (and (= (first args) "-n") (= (length args) 1))
+              (array/pop *dirs*)
+            (empty? args)
+              (os/cd (array/pop *dirs*))
+            (error "expected: popd [-n]" ))
+        ([e] put self :error e)))
+    :post-fork
+      (fn builtin-popd
+        [self args]
+        (when (self :error)
+          (error (self :error))))
+    :error nil
+  })
+
 (defn- make-clear-builtin
   []
   @{
@@ -1009,6 +1070,9 @@
   "alias" make-alias-builtin
   "unalias" make-unalias-builtin
   "exit" make-exit-builtin
+  "dirs" make-dirs-builtin
+  "pushd" make-pushd-builtin
+  "popd" make-popd-builtin
 })
 
 # References

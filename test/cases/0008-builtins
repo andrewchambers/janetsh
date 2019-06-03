@@ -40,3 +40,20 @@
 
 (sh/alias foo echo foo bar)
 (when (not= (sh/$$_? foo) ["foo bar" 0]) (error "fail"))
+
+
+(def startd (os/cwd))
+(sh/$ pushd "/tmp")
+(sh/$ pushd "/tmp")
+(when (not= (os/cwd) "/tmp") (error "fail"))
+(when (not= (tuple ;sh/*dirs*) [startd "/tmp"]) (error "fail"))
+(sh/$ popd)
+(when (not= (os/cwd) "/tmp") (error "fail"))
+(when (not= (tuple ;sh/*dirs*) [startd]) (error "fail"))
+(sh/$ popd)
+(when (not= (os/cwd) startd) (error "fail"))
+(sh/$ pushd "/tmp")
+(sh/$ popd -n)
+(when (not= (os/cwd) "/tmp") (error "fail"))
+(when (not= (tuple ;sh/*dirs*) []) (error "fail"))
+(os/cd startd)
