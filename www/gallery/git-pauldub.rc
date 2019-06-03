@@ -46,7 +46,7 @@
 
 (defn- has-git? []
   "Tests wether the current working directory is a git repository or not."
-  (sh/$?? git rev-parse --short HEAD :1>/dev/null :2>&1))
+  (sh/$?? git rev-parse --short HEAD :1>/dev/null :2>'1))
 
 (defn- git-dirty []
   "Returns an indicator if the git repository is dirty"
