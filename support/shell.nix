@@ -10,6 +10,7 @@ in
       asciinema
       expect
       inotify-tools
+      clang-tools
       janet
       libedit
       mendoza
