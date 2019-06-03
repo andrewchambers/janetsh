@@ -6,3 +6,37 @@
 (when (not (sh/$?? cd ./.)) (error "fail"))
 (when (not= (do (sh/$?? cd) (os/cwd)) (os/getenv "HOME")) (error "fail"))
 (when (sh/$?? cd ./not-exists :2>/dev/null) (error "fail"))
+
+(sh/$$_ alias x xxx)
+(sh/$$_ alias y yyy)
+(sh/alias z zzz)
+
+# all aliases printed
+(when (not= (sh/$$_? alias) ["alias x xxx\nalias y yyy\nalias z zzz" 0]) (error "fail"))
+
+# only requested alias printed
+(when (not= (sh/$$_? alias x) ["alias x xxx" 0]) (error "fail"))
+
+# non-existing alias errs
+(when (not= (sh/$$_? alias a :2>/dev/null) ["" 1]) (error "fail"))
+
+# non-existing alias errs
+(when (not= (sh/$$_? unalias a :2>/dev/null) ["" 1]) (error "fail"))
+
+# still all aliases are present
+(when (not= (sh/$$_? alias) ["alias x xxx\nalias y yyy\nalias z zzz" 0]) (error "fail"))
+
+# errs because of non-existing while removing existing one
+(when (not= (sh/$$_? unalias a z :2>/dev/null) ["" 1]) (error "fail"))
+
+# the removed alias is not present
+(when (not= (sh/$$_? alias) ["alias x xxx\nalias y yyy" 0]) (error "fail"))
+
+# removes all aliases
+(when (not= (sh/$$_? unalias -a) ["" 0]) (error "fail"))
+
+# no aliases left
+(when (not= (sh/$$_? alias) ["" 0]) (error "fail"))
+
+(sh/alias foo echo foo bar)
+(when (not= (sh/$$_? foo) ["foo bar" 0]) (error "fail"))

@@ -29,9 +29,6 @@
 # signals disabled...
 (var unsafe-child-cleanup-array nil)
 
-# Stores defined aliases
-(var *aliases* @{})
-
 # Reentrancy counter for shell signals...
 (var disable-cleanup-signals-count 0)
 
@@ -523,57 +520,6 @@
   (when (= s "~") (set s (get-home)))
   (glob (string ;(peg/match expand-parser s))))
 
-(defn- make-cd-builtin
-  []
-  @{
-    :pre-fork
-      (fn builtin-cd
-        [self args]
-        (try
-          (do
-            (var args (if (empty? args)
-                        (if-let [home (os/getenv "HOME")]
-                          [home]
-                          (error "cd: HOME not set"))
-                        args))
-            (os/cd ;args))
-          ([e] (put self :error e))))
-    :post-fork
-      (fn builtin-cd
-        [self args]
-        (when (self :error)
-          (error (self :error))))
-    :error nil
-  })
-
-(defn- make-clear-builtin
-  []
-  @{
-    :pre-fork
-      (fn builtin-clear [self args] nil)
-    :post-fork
-      (fn builtin-clear
-        [self args]
-        (file/write stdout "\x1b[H\x1b[2J"))
-  })
-
-# Table of builtin name to constructor
-# function for builtin objects.
-#
-# A builtin has two methods:
-# :pre-fork [self args]
-# :post-fork [self args]
-(var *builtins* @{
-  "clear" make-clear-builtin
-  "cd" make-cd-builtin
-})
-
-(defn- replace-builtins
-  [args]
-  (when-let [bi (*builtins* (first args))]
-    (put args 0 (bi)))
-  args)
-
 (defn- norm-redir
   [& r]
   (var @[a b c] r)
@@ -600,7 +546,6 @@
   (let [match (peg/match redir-parser r)]
     (when match (first match))))
 
-
 (def- env-var-parser (peg/compile
   ~{
     :main (sequence (capture (some (sequence (not "=") 1))) "=" (capture (any 1)))
@@ -609,6 +554,13 @@
 (defn- parse-env-var
   [s]
   (peg/match env-var-parser s))
+
+(defn- arg-symbol?
+  [f]
+  (match (type f)
+    :symbol true
+    :keyword true
+    false))
 
 (defn- form-to-arg
   "Convert a form to a form that is
@@ -640,123 +592,13 @@
       "nil"
     (error (string "unsupported shell argument type: " (type f)))))
 
-(defn- arg-symbol?
-  [f]
-  (match (type f)
-    :symbol true
-    :keyword true
-    false))
-
-<<<<<<< HEAD
-=======
-(defn- make-cd-builtin
-  []
-  @{
-    :pre-fork
-      (fn builtin-cd
-        [self args]
-        (try
-          (os/cd ;args)
-          ([e] (put self :error e))))
-    :post-fork
-      (fn builtin-cd
-        [self args]
-        (when (self :error)
-          (error (self :error))))
-    :error nil 
-  })
-
-(defn- make-clear-builtin
-  []
-  @{
-    :pre-fork
-      (fn builtin-clear [self args] nil)
-    :post-fork
-      (fn builtin-clear
-        [self args]
-        (file/write stdout "\x1b[H\x1b[2J"))
-  })
-
-(defn- make-alias-builtin
-  []
-  @{
-    :pre-fork
-      (fn builtin-alias [self args]
-        (var fst (first args))
-        (cond
-           (= fst "-h") nil
-           (empty? args) nil
-           (and (= (length args) 1) (= (*aliases* fst) nil))
-             (put self :error (string "alias: " fst " not found"))
-           (= (length args) 1) nil
-
-           # put specific alias
-           (when-let [alias fst
-                      cmd (tuple/slice args 1)]
-             (put *aliases* alias cmd))))
-    :post-fork
-      (fn builtin-alias [self args]
-        (var fst (first args))
-        (cond
-          (self :error) (error (self :error))
-          (= fst "-h")
-            (file/write stdout "alias name [commands]\n")
-          (empty? args)
-            (each [alias cmd] (pairs *aliases*)
-              (file/write stdout
-                (string "alias " alias " " (string/join cmd " ") "\n")))
-          (= (length args) 1)
-            (when-let [alias fst
-                       cmd (*aliases* alias)]
-              (file/write stdout
-                (string "alias " alias " " (string/join cmd " ") "\n")))))
-    :error nil
-  })
-
-(defn- make-unalias-builtin
-  []
-  @{
-    :pre-fork
-      (fn builtin-unalias [self args]
-        (var fst (first args))
-        (case fst
-          nil nil
-          "-h" nil
-          "-a"
-            # unalias all
-            (each alias (keys *aliases*)
-              (put *aliases* alias nil))
-
-          (each alias args
-            (if-not (nil? (*aliases* alias))
-              (put *aliases* alias nil)
-              (put self :error (string "unalias: " fst " not found")))
-            )))
-    :post-fork
-      (fn builtin-unalias [self args]
-        (var fst (first args))
-        (case fst
-          nil
-            (print "unalias [-a] name [name ...]")
-          "-h"
-            (print "unalias [-a] name [name ...]")
-          "-a"
-          (self :error) (error (self :error))))
-    :error nil
-  })
-
 # Table of builtin name to constructor
 # function for builtin objects.
 #
 # A builtin has two methods:
 # :pre-fork [self args]
 # :post-fork [self args]
-(var *builtins* @{
-  "clear" make-clear-builtin
-  "cd" make-cd-builtin
-  "alias" make-alias-builtin
-  "unalias" make-unalias-builtin
-})
+(var *builtins* nil) # intialized after builtin definitions.
 
 (defn- replace-builtins
   [args]
@@ -764,13 +606,31 @@
     (put args 0 (bi)))
   args)
 
-(defn- replace-aliases
-    [args]
-  (when-let [bi (*aliases* (first args))]
-    (put args 0 bi))
-  args)
+# Stores defined aliases in the form @{"ls" ["ls" "-la"]}
+# Can be changed directly, or with the helper macro.
+(var *aliases* @{})
 
->>>>>>> Add support for shell aliases
+(defmacro alias
+  [& cmds]
+  "Install an alias while following normal process argument expansion.
+   Example:  (sh/alias ls ls -la)
+   "
+  ~(if-let [expanded (map string (flatten ,(map form-to-arg cmds)))
+            name (first expanded)
+            rest (tuple/slice expanded 1)
+            _ (not (empty? rest))]
+      (put (,(fn [] *aliases*)) name rest)
+      (error "alias expects at least two expanded arguments")))
+
+(defn unalias [name]
+  (put *aliases* name nil))
+
+(defn- replace-aliases
+  [args]
+  (if-let [alias (*aliases* (first args))]
+    (array/concat (array ;alias) (array/slice args 1))
+    args))
+
 (defn parse-job
   [& forms]
   (var state :env)
@@ -833,9 +693,8 @@
   
   (each proc (job :procs)
     (put proc :args
-      (tuple replace-builtins (tuple flatten
-        (tuple replace-aliases (tuple flatten (proc :args)))))))
-
+      (tuple replace-builtins
+        (tuple replace-aliases (tuple flatten (proc :args))))))
   [job fg])
 
 (defn do-lines
@@ -1024,6 +883,111 @@
   [env-vars & forms]
   (tuple in-env* env-vars (tuple 'fn [] ;forms)))
 
+(defn- make-cd-builtin
+  []
+  @{
+    :pre-fork
+      (fn builtin-cd
+        [self args]
+        (try
+          (os/cd ;
+            (if (empty? args)
+               [(or (os/getenv "HOME") (error "cd: HOME not set"))]
+               args))
+          ([e] (put self :error e))))
+    :post-fork
+      (fn builtin-cd
+        [self args]
+        (when (self :error)
+          (error (self :error))))
+    :error nil
+  })
+
+(defn- make-clear-builtin
+  []
+  @{
+    :pre-fork
+      (fn builtin-clear [self args] nil)
+    :post-fork
+      (fn builtin-clear
+        [self args]
+        (file/write stdout "\x1b[H\x1b[2J"))
+  })
+
+(defn- make-alias-builtin
+  []
+  @{
+    :pre-fork
+      (fn builtin-alias [self args]
+        (var fst (first args))
+        (cond
+           (= fst "-h") nil
+           (empty? args) nil
+           (and (= (length args) 1) (= (*aliases* fst) nil))
+             (put self :error (string "alias: " fst " not found"))
+           (= (length args) 1) nil
+
+           # put specific alias
+           (when-let [alias fst
+                      cmd (tuple/slice args 1)]
+             (put *aliases* alias cmd))))
+    :post-fork
+      (fn builtin-alias [self args]
+        (var fst (first args))
+        (cond
+          (self :error) (error (self :error))
+          (= fst "-h")
+            (file/write stdout "alias name [commands]\n")
+          (empty? args)
+            (each [alias cmd] (pairs *aliases*)
+              (file/write stdout
+                (string "alias " alias " " (string/join cmd " ") "\n")))
+          (= (length args) 1)
+            (when-let [alias fst
+                       cmd (*aliases* alias)]
+              (file/write stdout
+                (string "alias " alias " " (string/join cmd " ") "\n")))))
+    :error nil
+  })
+
+(defn- make-unalias-builtin
+  []
+  (def help "unalias [-a] name [name ...]")
+  @{
+    :pre-fork
+      (fn builtin-unalias [self args]
+        (var fst (first args))
+        (case fst
+          nil nil
+          "-h" nil
+          "-a"
+            # unalias all
+            (each alias (keys *aliases*)
+              (put *aliases* alias nil))
+
+          (each alias args
+            (if (*aliases* alias)
+              (put *aliases* alias nil)
+              (put self :error (string "unalias: " fst " not found"))))))
+    :post-fork
+      (fn builtin-unalias [self args]
+        (var fst (first args))
+        (when (self :error)
+          (error (self :error)))
+        (case fst
+          nil
+            (print help)
+          "-h"
+            (print help)))
+    :error nil
+  })
+
+(set *builtins* @{
+  "clear" make-clear-builtin
+  "cd" make-cd-builtin
+  "alias" make-alias-builtin
+  "unalias" make-unalias-builtin
+})
 
 # References
 # [1] https://www.gnu.org/software/libc/manual/html_node/Implementing-a-Shell.html
