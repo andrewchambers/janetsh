@@ -914,6 +914,27 @@
         (file/write stdout "\x1b[H\x1b[2J"))
   })
 
+(defn- make-exit-builtin
+  []
+  @{
+    :pre-fork
+      (fn builtin-exit
+        [self args]
+        (try
+          (do
+            (when (empty? args)
+              (os/exit 0))
+            (if-let [code (and (= (length args) 1) (scan-number (first args)))]
+              (os/exit code)
+              (error "expected: exit NUM")))
+        ([e] (put self :error e))))
+    :post-fork
+      (fn builtin-exit
+        [self args]
+        (error (self :error)))
+    :error nil
+  })
+
 (defn- make-alias-builtin
   []
   @{
@@ -987,6 +1008,7 @@
   "cd" make-cd-builtin
   "alias" make-alias-builtin
   "unalias" make-unalias-builtin
+  "exit" make-exit-builtin
 })
 
 # References
