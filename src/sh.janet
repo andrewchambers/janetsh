@@ -720,8 +720,6 @@
       (when-let [xln (f ln)]
         (file/write stdout xln)))))
 
-(def escape identity)
-
 (defmacro $
   "Execute a shell job (pipeline) in the foreground or background with 
    a set of optional redirections for each process.\n\n
