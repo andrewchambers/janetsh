@@ -57,3 +57,10 @@
 (when (not= (os/cwd) "/tmp") (error "fail"))
 (when (not= (tuple ;sh/*dirs*) []) (error "fail"))
 (os/cd startd)
+
+
+(sh/$ export FOO=bar BANG="BUZ" BAZ="" BONG= 3)
+(when (not= [(os/getenv "FOO") (os/getenv "BANG") (os/getenv "BAZ") (os/getenv "BONG")]
+            ["bar" "BUZ" "" "3"])
+  (error "fail"))
+(when (sh/$?? export FOO= :2>/dev/null) (error "fail"))

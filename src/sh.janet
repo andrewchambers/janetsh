@@ -1001,18 +1001,21 @@
   @{
     :pre-fork
       (fn builtin-alias [self args]
-        (var fst (first args))
-        (cond
-           (= fst "-h") nil
-           (empty? args) nil
-           (and (= (length args) 1) (= (*aliases* fst) nil))
-             (put self :error (string "alias: " fst " not found"))
-           (= (length args) 1) nil
+        (try
+          (do
+            (var fst (first args))
+            (cond
+               (= fst "-h") nil
+               (empty? args) nil
+               (and (= (length args) 1) (= (*aliases* fst) nil))
+                 (error (string "alias: " fst " not found"))
+               (= (length args) 1) nil
 
-           # put specific alias
-           (when-let [alias fst
-                      cmd (tuple/slice args 1)]
-             (put *aliases* alias cmd))))
+               # put specific alias
+               (when-let [alias fst
+                          cmd (tuple/slice args 1)]
+                 (put *aliases* alias cmd))))
+          ([e] (put self :error e))))
     :post-fork
       (fn builtin-alias [self args]
         (var fst (first args))
@@ -1038,29 +1041,66 @@
   @{
     :pre-fork
       (fn builtin-unalias [self args]
-        (var fst (first args))
-        (case fst
-          nil nil
-          "-h" nil
-          "-a"
-            # unalias all
-            (each alias (keys *aliases*)
-              (put *aliases* alias nil))
+        (try
+          (do
+            (var fst (first args))
+            (case fst
+              nil nil
+              "-h" nil
+              "-a"
+                # unalias all
+                (each alias (keys *aliases*)
+                  (put *aliases* alias nil))
 
-          (each alias args
-            (if (*aliases* alias)
-              (put *aliases* alias nil)
-              (put self :error (string "unalias: " fst " not found"))))))
+              (each alias args
+                (if (*aliases* alias)
+                  (put *aliases* alias nil)
+                  (put self :error (string "unalias: " fst " not found"))))))
+        ([e] (put self :error e))))
     :post-fork
       (fn builtin-unalias [self args]
-        (var fst (first args))
         (when (self :error)
           (error (self :error)))
-        (case fst
+        (case (first args)
           nil
             (print help)
           "-h"
             (print help)))
+    :error nil
+  })
+
+(defn- make-export-builtin
+  []
+  @{
+    :pre-fork
+      (fn builtin-export [self args]
+        (try
+          (do
+            (var state :env1)
+            (var pending-e nil)
+            (each arg args
+              (match state
+                :env1
+                  (if-let [ev (parse-env-var arg)
+                           [e v] ev]
+                    (if (empty? v)
+                      (do
+                        (set pending-e e)
+                        (set state :env2))
+                      (os/setenv e v))
+                    (error "expected env assignment."))
+                :env2
+                  (do
+                    (os/setenv pending-e arg)
+                    (set state :env1))))
+            (when (not= state :env1)
+              (error "export: bad env assignment")))
+        ([e] (put self :error e))))
+    :post-fork
+      (fn builtin-export
+        [self args]
+        (when (self :error)
+          (error (self :error))))
     :error nil
   })
 
@@ -1073,6 +1113,7 @@
   "dirs" make-dirs-builtin
   "pushd" make-pushd-builtin
   "popd" make-popd-builtin
+  "export" make-export-builtin
 })
 
 # References
