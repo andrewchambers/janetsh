@@ -518,11 +518,7 @@
   [s]
   (var s s)
   (when (= s "~") (set s (get-home)))
-  
-  # 'glob' will double the '/' in these two cases, so ignore them.
-  (if (and (not= s "/") (not= s "./"))
-    (glob (string ;(peg/match expand-parser s)))
-    @[s]))
+  (glob (string ;(peg/match expand-parser s))))
 
 (defn- norm-redir
   [& r]

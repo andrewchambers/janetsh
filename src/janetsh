@@ -72,6 +72,17 @@
   (fn *get-completions*
     [line start end]
 
+    (defn- expand-completion
+      [comp]
+      (->> (sh/expand comp)
+           (map (fn [f]
+                  (if-let [stat (os/stat f)]
+                    (if (and (= (stat :mode) :directory)
+                             (not= (last f) ("/" 0)))
+                      (string f "/")
+                      f)
+                    f)))))
+
     (defn- scan-for-completions
       [prefix &opt modes permissions]
       (defn desired-file?
@@ -82,9 +93,9 @@
                (if permissions
                  (string/find permissions (stat :permissions))
                  true))))
-      (var single (sh/expand prefix))
+      (var single (expand-completion prefix))
       (when (= (length single) 1)
-        (->> (sh/expand (string prefix "*"))
+        (->> (expand-completion (string prefix "*"))
           (filter desired-file?)
           (map (fn [exp] (string/slice (string/slice exp (length (first single)))))))))
 
