@@ -1103,6 +1103,85 @@
   "export" make-export-builtin
 })
 
+(defn get-completions
+  "Determine the appropriate completions for a given line from
+   a particular start and end position.\n\n
+
+   This is the default value for *get-completions*."
+  [line start end env]
+
+  (defn- expand-completion
+    [comp]
+    (->> (expand comp)
+         (map (fn [f]
+                (if-let [stat (os/stat f)]
+                  (if (and (= (stat :mode) :directory)
+                           (not= (last f) ("/" 0)))
+                    (string f "/")
+                    f)
+                  f)))))
+
+  (defn- scan-for-completions
+    [prefix &opt modes permissions]
+    (defn desired-file?
+      [p]
+      (when-let [stat (os/stat p)]
+        (default modes @[:file :directory])
+        (and (find (fn [m] (= m (stat :mode))) modes)
+             (if permissions
+               (string/find permissions (stat :permissions))
+               true))))
+    (var single (expand-completion prefix))
+    (when (= (length single) 1)
+      (->> (expand-completion (string prefix "*"))
+           (filter desired-file?)
+           (map (fn [exp] (string/slice (string/slice exp (length (first single)))))))))
+
+  (defn- completion-wants
+    [line start to-expand]
+    (var i (dec start))
+    (var wants (if (string/find "/" to-expand) :local-bin :bin))
+    (while (>= i 0)
+      (cond
+        (= (line i) ("|" 0))
+        (break)
+
+        (= (line i) ("(" 0))
+        (do (set wants :function)
+            (break))
+
+        (not= (line i) (" " 0))
+        (do (set wants :local-file)
+            (break))
+
+        (-- i)))
+    wants)
+
+  (var completions @[])
+  (var to-expand (string (string/slice line start end)))
+  (match (completion-wants line start to-expand)
+    :local-file
+     (each completion (scan-for-completions to-expand)
+       (array/push completions (string to-expand completion)))
+     :local-bin
+     (each completion (scan-for-completions to-expand @[:file :directory] "x")
+       (array/push completions (string to-expand completion)))
+     :bin
+     (do
+       (array/concat completions
+                     (->> (keys *builtins*)
+                          (filter (fn [bi] (string/has-prefix? to-expand bi)))))
+       (each path-ent (string/split ":" (os/getenv "PATH"))
+         (each completion (scan-for-completions (string path-ent "/" to-expand)
+                                                @[:file] "x")
+           (array/push completions (string to-expand completion)))))
+     :function
+     (set completions
+          (->> (all-bindings env)
+               (map string)
+               (filter (fn [s] (string/has-prefix? to-expand s))))))
+  completions)
+
 # References
 # [1] https://www.gnu.org/software/libc/manual/html_node/Implementing-a-Shell.html
 # [2] https://www.gnu.org/software/libc/manual/html_node/Launching-Jobs.html#Launching-Jobs

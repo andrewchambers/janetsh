@@ -1,0 +1,54 @@
+#! /usr/bin/env janetsh
+(import sh)
+
+# FIXME use an assert macro that
+# prints what we wanted and what we got.
+
+(var env (fiber/getenv (fiber/current)))
+
+(defn complete [line &opt start end] 
+  # Simple default 'start' for convenience
+  (default start (inc (or (find-index (fn [c] (= c (" " 0))) line) -1)))
+  (default end (length line))
+  
+  # Sometimes completions can be repeated (symlinked directories in the 
+  # PATH, etc). This is handled by readline, so ignore it here.
+  (distinct (sh/get-completions line start end env)))
+
+(os/mkdir "test")
+(file/open "test/file1" :w)
+(file/open "test/file2" :w)
+(file/open "test/otherfile" :w)
+
+(os/execute @["chmod" "+x" "test/file1"] :p)
+
+(when (deep-not= (complete "ls te") @["test/"])
+  (error "fail1"))
+
+(when (deep-not= (complete "ls test/") 
+                 @["test/file1" "test/file2" "test/otherfile"])
+  (error "fail2"))
+
+(when (deep-not= (complete "(string/spli" 1) 
+                 @["string/split"])
+  (error "fail3"))
+
+(when (deep-not= (complete "expor") 
+                 @["export"])
+  (error "fail4"))
+
+(when (deep-not= (complete "janets") 
+                 @["janetsh" "janetsh-posix-wrapper"])
+  (error "fail5"))
+
+(when (deep-not= (complete "./") 
+                 @["./test/"])
+  (error "fail6"))
+
+(when (deep-not= (complete "./test/") 
+                 @["./test/file1"])
+  (error "fail7"))
+
+(when (deep-not= (complete "test/") 
+                 @["test/file1"])
+  (error "fail8"))
