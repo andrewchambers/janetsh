@@ -48,9 +48,9 @@ case $target in
     v install ./src/janetsh-posix-wrapper "$PREFIX/bin"
     echo "writing $PREFIX/bin/janetsh"
     head -n 1 ./src/janetsh > "$PREFIX/bin/janetsh"
-    echo "(array/concat module/paths [" >> "$PREFIX/bin/janetsh"
+    echo "(array/insert module/paths 0 " >> "$PREFIX/bin/janetsh"
     echo "  [\"$PREFIX/lib/janetsh/:all:.janet\" :source]" >> "$PREFIX/bin/janetsh"
-    echo "  [\"$PREFIX/lib/janetsh/:all:.:native:\" :native]])" >> "$PREFIX/bin/janetsh"
+    echo "  [\"$PREFIX/lib/janetsh/:all:.:native:\" :native])" >> "$PREFIX/bin/janetsh"
     tail -n +2 ./src/janetsh >> "$PREFIX/bin/janetsh"
     v chmod +x "$PREFIX/bin/janetsh"
     ;;
