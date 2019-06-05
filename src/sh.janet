@@ -261,11 +261,12 @@
   (set shell-tmodes (tcgetattr STDIN_FILENO))
   (when (j :tmodes)
     (tcsetattr STDIN_FILENO TCSADRAIN (j :tmodes)))
-  (tcsetpgrp STDIN_FILENO (j :pgid))
   (update-job-status j)
-  (when (job-stopped? j)
-    (continue-job j))
-  (wait-for-job j)
+  (when (not (job-complete? j))
+    (tcsetpgrp STDIN_FILENO (j :pgid))
+    (when (job-stopped? j)
+      (continue-job j))
+    (wait-for-job j))
   (tcsetpgrp STDIN_FILENO (getpgrp))
   (put j :tmodes (tcgetattr STDIN_FILENO))
   (tcsetattr STDIN_FILENO TCSADRAIN shell-tmodes)
@@ -378,33 +379,21 @@
             (when (not (j :pgid))
               (put j :pgid pid))
             (try
-              (setpgid pid (j :pgid))
+              (do
+                (setpgid pid (j :pgid))
+                (when (and on-tty in-foreground)
+                  (tcsetpgrp STDIN_FILENO (j :pgid))))
             ([e]
-              # EACCES If the parent is so slow
-              # the child has run execv, we will
-              # get this error. If we get this
-              # error in the parent,
-              # it means the child itself
-              # has done setpgid, so it is safe to
-              # ignore. We should never get
-              # this error in the child according to
-              # the conditions in the man pages.
-              #
-              # ESRCH can happen on BSD's (at least) 
-              # under a similar situation. The child has 
-              # died before we got here in a race with our fork.
-              # It seems we can ignore that error.
-              #
+              # These errors all seem to be caused by the child's premature
+              # death racing with the necessary setup in the shell and child.
               # The worse case of ignoring this error seem to
               # be that this child was really killed before it called setpgid.
               # This should make a missing job which we will detect later.
-              (when (and (not= (dyn :errno) EACCES)
-                         (not= (dyn :errno) ESRCH))
+              # It is not really a race anymore because the child is dead.
+              (when (not (find (partial = (dyn :errno)) [EACCES EPERM ESRCH]))
                 (error e))))
             (put proc :pid pid)
-            (put pid2proc pid proc)
-            (when (and on-tty in-foreground)
-              (tcsetpgrp STDIN_FILENO (j :pgid))))
+            (put pid2proc pid proc))
 
           (var pid (fork))
           
@@ -445,8 +434,8 @@
 
       (array/push jobs j)
       # Since we inserted a new job
-      # we chould prune the old jobs
-      # add configure the cleanup array.
+      # we should prune the old jobs
+      # which also configures the cleanup array.
       (prune-complete-jobs)
       (enable-cleanup-signals)
       

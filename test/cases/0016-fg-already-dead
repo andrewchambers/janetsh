@@ -1,0 +1,13 @@
+#! /usr/bin/env janetsh
+
+(import sh)
+
+(def j (sh/$ false &))
+(os/sleep 0.1)
+(sh/prune-complete-jobs)
+# Unfortunately this test doesn't work on every ci
+# platform, but it seems to work at least on freebsd.
+# which indirectly tests other platforms.
+(if sh/on-tty
+  (sh/fg-job j)
+  (print "*NOTE* skipping test, not on tty."))
