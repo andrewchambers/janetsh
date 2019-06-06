@@ -93,8 +93,18 @@
     (when (want-implicit-parens buf p)
       (let [line (string buf)]
         (buffer/clear buf)
-        (buffer/format buf "(sh/$? %s)\n" line)))
-    buf))
+        (buffer/format buf "(sh/$? %s)\n" line)
+        true))))
+
+(var *show-exit-code* true)
+
+(defn- show-status [f res added-parens]
+  (case (fiber/status f)
+    :dead (do
+            (if (or *show-exit-code* (not added-parens))
+              (pp res))
+            (put user-env '_ @{:value res}))
+    (debug/stacktrace f res)))
 
 (setdyn :pretty-format "%.40p")
 
@@ -109,18 +119,72 @@
 (def do-lines sh/do-lines)
 (def out-lines sh/out-lines)
 
-(var *janetsh-repl*
-  (fn *janetsh-repl*
-    []
-    (when *hist-file*
-      (try
-        (shlib/input/history-load *hist-file*)
-        ([e] nil)))
+(defn- janetsh-default-repl []
+  (var show-status show-status)
+  (var on-compile-error bad-compile)
+  (var on-parse-error bad-parse)
+  (var where "<janetsh>")
 
-    (repl getchunk nil user-env)
+  (when *hist-file*
+    (try
+      (shlib/input/history-load *hist-file*)
+      ([e] nil)))
 
-    (when *hist-file*
-      (shlib/input/history-save *hist-file*))))
+  # Are we done yet?
+  (var going true)
+
+  # The parser object
+  (def p (parser/new))
+
+  # Evaluate 1 source form in a protected manner
+  (defn eval1 [source added-parens]
+    (var good true)
+    (def f
+      (fiber/new
+        (fn []
+          (def res (compile source user-env ))
+          (if (= (type res) :function)
+            (res)
+            (do
+              (set good false)
+              (def {:error err :start start :end end :fiber errf} res)
+              (def msg
+                (if (<= 0 start)
+                  (string err " at (" start ":" end ")")
+                  err))
+              (on-compile-error msg errf where))))
+        :a))
+    (fiber/setenv f user-env)
+    (def res (resume f nil))
+    (when good (if going (show-status f res added-parens))))
+
+  # Loop
+  (def buf @"")
+  (while going
+    (buffer/clear buf)
+    (let [added-parens (getchunk buf p)]
+      (var pindex 0)
+      (var pstatus nil)
+      (def len (length buf))
+      (when (= len 0)
+        (parser/eof p)
+        (set going false))
+      (while (> len pindex)
+        (+= pindex (parser/consume p buf pindex))
+        (while (parser/has-more p)
+          (eval1 (parser/produce p) added-parens))
+        (when (= (parser/status p) :error)
+          (on-parse-error p where)))))
+  # Check final parser state
+  (while (parser/has-more p)
+    (eval1 (parser/produce p)))
+  (when (= (parser/status p) :error)
+    (on-parse-error p where))
+
+  (when *hist-file*
+    (shlib/input/history-save *hist-file*)))
+
+(var *janetsh-repl* janetsh-default-repl)
 
 (defn- run-interactive
   []
