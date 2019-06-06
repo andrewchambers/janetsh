@@ -1,0 +1,9 @@
+#! /bin/sh
+
+set -eu
+
+janetsh $TEST_CASE/redir-stdout.janet
+test "$(cat ./redir-stdout.txt)" = "hello world."
+
+janetsh $TEST_CASE/exec-echo.janet > ./exec-echo.txt
+test "$(cat ./exec-echo.txt)" = "goodbye world."
