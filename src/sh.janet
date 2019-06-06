@@ -46,18 +46,29 @@
   (set disable-cleanup-signals-count 0)
   (mask-cleanup-signals SIG_UNBLOCK))
 
+(defn- rebuild-unsafe-child-cleanup-array
+  []
+  (var new-unsafe-child-cleanup-array @[])
+  (disable-cleanup-signals)
+  (each j jobs
+    (when (j :cleanup)
+      (each p (j :procs)
+        (array/push new-unsafe-child-cleanup-array (p :pid)))))
+  (set unsafe-child-cleanup-array new-unsafe-child-cleanup-array)
+  (register-unsafe-child-cleanup-array unsafe-child-cleanup-array)
+  (enable-cleanup-signals))
+
 (defn init
   [&opt is-subshell]
   (when initialized
     (break))
 
+  (when (not= disable-cleanup-signals-count 0)
+    (error "bug"))
   (set jobs @[])
   (set pid2proc @{})
   
-  (disable-cleanup-signals)
-  (set unsafe-child-cleanup-array @[])
-  (register-unsafe-child-cleanup-array unsafe-child-cleanup-array)
-  (enable-cleanup-signals)
+  (rebuild-unsafe-child-cleanup-array)
   (register-atexit-cleanup)
   
   (set on-tty
@@ -74,9 +85,14 @@
   []
   (when (not initialized)
     (break))
-  (set initialized false)
+  (disable-cleanup-signals)
+  (set jobs @[])
+  (set pid2proc @{})
+  (rebuild-unsafe-child-cleanup-array)
+  (unregister-atexit-cleanup)
   (reset-signal-handlers)
-  (force-enable-cleanup-signals))
+  (force-enable-cleanup-signals)
+  (set initialized false))
 
 (defn- new-job []
   # Don't manpulate job tables directly, instead
@@ -221,18 +237,6 @@
   []
   (each j jobs (terminate-job j)))
 
-(defn- rebuild-unsafe-child-cleanup-array
-  []
-  (var new-unsafe-child-cleanup-array @[])
-  (disable-cleanup-signals)
-  (each j jobs
-    (when (j :cleanup)
-      (each p (j :procs)
-        (array/push new-unsafe-child-cleanup-array (p :pid)))))
-  (set unsafe-child-cleanup-array new-unsafe-child-cleanup-array)
-  (register-unsafe-child-cleanup-array unsafe-child-cleanup-array)
-  (enable-cleanup-signals))
-
 (defn prune-complete-jobs
   "Poll active jobs without blocking and then remove completed jobs
    from the jobs table."
@@ -278,12 +282,13 @@
   (when (job-stopped? j)
     (continue-job j)))
 
-(defn- exec-proc
-  [args env redirs]
-  
+(defn- do-setenv
+  [env]
   (each ev (pairs env)
-    (os/setenv (ev 0) (ev 1)))
+    (os/setenv (ev 0) (ev 1))))
 
+(defn- do-redirs
+  [redirs]
   (each r redirs
     (var sinkfd (get r 0))
     (var src  (get r 2))
@@ -305,9 +310,19 @@
         (set srcfd src)
       (error "unsupported redirect target type"))
     
-    (dup2 srcfd sinkfd))
-  
-  (defn- run-subshell-proc [f args]
+    (dup2 srcfd sinkfd)))
+
+(defn- exec-proc
+  [proc]
+
+  # The child doesn't want our signal handlers
+  # or any other stuff like job tables and cleanup.
+  (deinit)
+
+  (do-setenv (proc :env))
+  (do-redirs (proc :redirs))
+
+  (defn- run-subshell-proc [f]
     # This is a subshell inside a job.
     # Clear jobs, they aren't the subshell's jobs.
     # The subshells should be able to run jobs
@@ -316,7 +331,7 @@
     
     (var rc 0)
     (try
-      (f args)
+      (f (tuple/slice (proc :args) 1))
       ([e]
         (set rc 1)
         (file/write stderr (string "error: " e "\n"))))
@@ -325,13 +340,13 @@
     (file/flush stderr)
     (os/exit rc))
 
-  (var entry-point (first args))
+  (var entry-point (first (proc :args)))
   (cond
     (function? entry-point)
-      (run-subshell-proc entry-point (tuple/slice args 1))
+      (run-subshell-proc entry-point)
     (table? entry-point)
-      (run-subshell-proc (fn [eargs] (:post-fork entry-point eargs)) (tuple/slice args 1))
-    (exec ;(map string args))))
+      (run-subshell-proc (fn [eargs] (:post-fork entry-point eargs)))
+    (exec ;(map string (proc :args)))))
     
 (defn launch-job
   [j in-foreground]
@@ -369,7 +384,7 @@
               (set outfd STDOUT_FILENO)))
 
           (when (table? (first (proc :args)))
-            (:pre-fork (first (proc :args)) (tuple/slice (proc :args) 1)))
+            (:pre-fork (first (proc :args)) proc))
 
           # As mentioned in [2] we must set the right pgid
           # in both the parent and the child to avoid a race
@@ -410,16 +425,13 @@
                 (when pipes
                   (close (pipes 0)))
 
-                # The child doesn't want our signal handlers
-                # or any other stuff like job control.
-                (deinit)
-
-                (def redirs (array/concat @[
+                # We are in the child, no harm in updating
+                # the proc table in place.
+                (array/insert (proc :redirs) 0
                     @[STDIN_FILENO  "<"  infd]
                     @[STDOUT_FILENO ">" outfd]
-                    @[STDERR_FILENO ">"  errfd]] (proc :redirs)))
-                
-                (exec-proc (proc :args) (proc :env) redirs)
+                    @[STDERR_FILENO ">"  errfd])
+                (exec-proc proc)
                 (error "unreachable"))
             ([e] (do (file/write stderr (string e "\n")) (os/exit 1)))))
 
@@ -585,8 +597,8 @@
 # function for builtin objects.
 #
 # A builtin has two methods:
-# :pre-fork [self args]
-# :post-fork [self args]
+# :pre-fork [self {:args args}]
+# :post-fork [self {:args args}]
 (var *builtins* nil) # intialized after builtin definitions.
 
 (defn- replace-builtins
@@ -875,12 +887,13 @@
   @{
     :pre-fork
       (fn builtin-cd
-        [self args]
+        [self {:args args}]
         (try
-          (os/cd ;
-            (if (empty? args)
-               [(or (os/getenv "HOME") (error "cd: HOME not set"))]
-               args))
+          (let [args (tuple/slice args 1)]
+            (os/cd ;
+              (if (empty? args)
+                 [(or (os/getenv "HOME") (error "cd: HOME not set"))]
+                 args)))
           ([e] (put self :error e))))
     :post-fork
       (fn builtin-cd
@@ -888,6 +901,32 @@
         (when (self :error)
           (error (self :error))))
     :error nil
+  })
+
+(defn- make-exec-builtin
+  []
+  @{
+    :pre-fork
+      (fn builtin-exec
+        [self proc]
+        (try
+          (let [args (tuple/slice (proc :args) 1)]
+            (pp args)
+            (if (empty? args)
+              (do
+                (do-setenv (proc :env))
+                (do-redirs (proc :redirs)))
+              (do
+                (atexit-cleanup)
+                (array/remove (proc :args) 0)
+                (exec-proc proc))))
+          ([e]
+            (file/write stderr (string "exec failed: " e "\n"))
+            (os/exit 1))))
+    :post-fork
+      (fn builtin-exec
+        [self args]
+        nil)
   })
 
 # Dir stack used by 'dirs', 'pushd' and 'popd'
@@ -898,7 +937,7 @@
   @{
     :pre-fork
       (fn builtin-dirs
-        [self args]
+        [self {:args args}]
         nil)
     :post-fork
       (fn builtin-dirs
@@ -913,9 +952,9 @@
   @{
     :pre-fork
       (fn builtin-pushd
-        [self args]
+        [self {:args args}]
         (try
-          (do
+          (let [args (tuple/slice args 1)]
             (when (> (length args) 1)
               (error "expected: pushd [DIR]"))
             (def owd (os/cwd))
@@ -934,14 +973,15 @@
   []
   @{
     :pre-fork
-      (fn builtin-popd [self args]
+      (fn builtin-popd [self {:args args}]
         (try
-          (cond
-            (and (= (first args) "-n") (= (length args) 1))
-              (array/pop *dirs*)
-            (empty? args)
-              (os/cd (array/pop *dirs*))
-            (error "expected: popd [-n]" ))
+          (let [args (tuple/slice args 1)]
+            (cond
+              (and (= (first args) "-n") (= (length args) 1))
+                (array/pop *dirs*)
+              (empty? args)
+                (os/cd (array/pop *dirs*))
+              (error "expected: popd [-n]" )))
         ([e] put self :error e)))
     :post-fork
       (fn builtin-popd
@@ -955,7 +995,7 @@
   []
   @{
     :pre-fork
-      (fn builtin-clear [self args] nil)
+      (fn builtin-clear [self {:args args}] nil)
     :post-fork
       (fn builtin-clear
         [self args]
@@ -967,9 +1007,9 @@
   @{
     :pre-fork
       (fn builtin-exit
-        [self args]
+        [self {:args args}]
         (try
-          (do
+          (let [args (tuple/slice args 1)]
             (when (empty? args)
               (os/exit 0))
             (if-let [code (and (= (length args) 1) (scan-number (first args)))]
@@ -987,9 +1027,9 @@
   []
   @{
     :pre-fork
-      (fn builtin-alias [self args]
+      (fn builtin-alias [self {:args args}]
         (try
-          (do
+          (let [args (tuple/slice args 1)]
             (var fst (first args))
             (cond
                (= fst "-h") nil
@@ -1027,9 +1067,9 @@
   (def help "unalias [-a] name [name ...]")
   @{
     :pre-fork
-      (fn builtin-unalias [self args]
+      (fn builtin-unalias [self {:args args}]
         (try
-          (do
+          (let [args (tuple/slice args 1)]
             (var fst (first args))
             (case fst
               nil nil
@@ -1060,9 +1100,9 @@
   []
   @{
     :pre-fork
-      (fn builtin-export [self args]
+      (fn builtin-export [self {:args args}]
         (try
-          (do
+          (let [args (tuple/slice args 1)]
             (var state :env1)
             (var pending-e nil)
             (each arg args
@@ -1092,6 +1132,7 @@
   })
 
 (set *builtins* @{
+  "exec" make-exec-builtin
   "clear" make-clear-builtin
   "cd" make-cd-builtin
   "alias" make-alias-builtin

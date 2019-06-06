@@ -278,13 +278,11 @@ static Janet register_unsafe_child_cleanup_array(int32_t argc, Janet *argv) {
 }
 
 static int cleanup_registered = 0;
+static int cleanup_enabled = 0;
 static int pid_at_cleaup_registration = 0;
 
+
 static void signal_children(int signal) {
-  // After a fork (subshell), we shouldn't try to signal, unless
-  // the atexit cleanup has been re-registered.
-  if (getpid() != pid_at_cleaup_registration)
-    return;
 
   if (!unsafe_child_cleanup_array)
     return;
@@ -307,21 +305,47 @@ static void signal_children(int signal) {
   }
 }
 
-static void cleanup_children(void) {
+static void atexit_cleanup(void) {
+  // After a fork (subshell), we shouldn't try to signal, unless
+  // the atexit cleanup has been re-registered.
+  if (getpid() != pid_at_cleaup_registration)
+    return;
+  if (!cleanup_enabled)
+    return;
+
   signal_children(SIGTERM);
   signal_children(SIGCONT);
+  if (isatty(STDIN_FILENO)) {
+    pid_t pgid = getpgrp();
+    if (pgid != -1)
+      tcsetpgrp(STDIN_FILENO, pgid);
+  }
+}
+
+static Janet atexit_cleanup_(int32_t argc, Janet *argv) {
+  atexit_cleanup();
+  return janet_wrap_nil();
 }
 
 static void cleanup_sig_handler(int signum) { exit(1); }
+
 
 static Janet register_atexit_cleanup(int32_t argc, Janet *argv) {
   janet_fixarity(argc, 0);
   pid_at_cleaup_registration = getpid();
   if (!cleanup_registered) {
-    atexit(cleanup_children);
+    atexit(atexit_cleanup);
     cleanup_registered = 1;
   }
+  cleanup_enabled = 1;
 
+  return janet_wrap_nil();
+}
+
+static Janet unregister_atexit_cleanup(int32_t argc, Janet *argv) {
+  janet_fixarity(argc, 0);
+  // We can't remove the atexit handler, so we just disable it.
+  cleanup_enabled = 0;
   return janet_wrap_nil();
 }
 
@@ -572,6 +596,8 @@ static const JanetReg cfuns[] = {
     {"set-noninteractive-signal-handlers", set_noninteractive_signal_handlers,
      NULL},
     {"register-atexit-cleanup", register_atexit_cleanup, NULL},
+    {"unregister-atexit-cleanup", unregister_atexit_cleanup, NULL},
+    {"atexit-cleanup", atexit_cleanup_, NULL},
 
     // Termios
     {"tcgetattr", tcgetattr_, NULL},
