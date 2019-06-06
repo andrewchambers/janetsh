@@ -1,7 +1,8 @@
 (import shlib :prefix "")
 
 # This file is the main implementation of janetsh.
-# The best reference I have found so far is here [1].
+# The best reference I have found so far for new people is here:
+# https://www.gnu.org/software/libc/manual/html_node/Implementing-a-Shell.html
 
 (var initialized false)
 
@@ -386,9 +387,12 @@
           (when (table? (first (proc :args)))
             (:pre-fork (first (proc :args)) proc))
 
-          # As mentioned in [2] we must set the right pgid
+          # As mentioned here[1], we must set the right pgid
           # in both the parent and the child to avoid a race
-          # condition when we start waiting on the process group.
+          # condition when we start waiting on the process group before
+          # it is actually created.
+          # 
+          # [1] https://www.gnu.org/software/libc/manual/html_node/Launching-Jobs.html#Launching-Jobs 
           (defn 
             post-fork [pid]
             (when (not (j :pgid))
@@ -852,35 +856,8 @@
   ~(let [[out rc] ,(fn-$$? forms)]
     [(,string/trimr out) rc]))
 
-(defn in-env*
-  "Function form of in-env."
-  [env-vars f]
-  (let [old-vars @{}]
-    (each k (keys env-vars)
-      (def new-v (env-vars k))
-      (def old-v (os/getenv k))
-      (when (string? new-v)
-        (put old-vars k (if old-v old-v :unset))
-        (os/setenv k new-v)))
-    (var haderr false)
-    (var err nil)
-    (var result nil)
-    (try
-      (set result (f))
-      ([e] (set haderr true) (set err e)))
-    (each k (keys old-vars)
-      (def old-v (old-vars k))
-      (os/setenv k (if (= old-v :unset) nil old-v)))
-    (when haderr
-      (error err))
-    result))
 
-(defmacro in-env
-  "Run forms with os environment variables set
-   to the keys and values of env-vars. The os environment
-   is restored before returning the result."
-  [env-vars & forms]
-  (tuple in-env* env-vars (tuple 'fn [] ;forms)))
+# Shell builtins
 
 (defn- make-cd-builtin
   []
@@ -1144,6 +1121,8 @@
   "export" make-export-builtin
 })
 
+# Default completions
+
 (defn get-completions
   "Determine the appropriate completions for a given line from
    a particular start and end position.\n\n
@@ -1223,6 +1202,45 @@
                (filter (fn [s] (string/has-prefix? to-expand s))))))
   completions)
 
-# References
-# [1] https://www.gnu.org/software/libc/manual/html_node/Implementing-a-Shell.html
-# [2] https://www.gnu.org/software/libc/manual/html_node/Launching-Jobs.html#Launching-Jobs
+# Misc utility functions for end users.
+
+(defn shrink-path
+  "Shrink path p following rules:\n
+   replace the prefix $HOME/ with ~/"
+  [p]
+  (let [home (os/getenv "HOME")]
+    (cond
+      (string/has-prefix? (string home "/") p)
+      (string/replace home "~" p)
+      (= home p) "~"
+      p)))
+
+(defn in-env*
+  "Function form of in-env."
+  [env-vars f]
+  (let [old-vars @{}]
+    (each k (keys env-vars)
+      (def new-v (env-vars k))
+      (def old-v (os/getenv k))
+      (when (string? new-v)
+        (put old-vars k (if old-v old-v :unset))
+        (os/setenv k new-v)))
+    (var haderr false)
+    (var err nil)
+    (var result nil)
+    (try
+      (set result (f))
+      ([e] (set haderr true) (set err e)))
+    (each k (keys old-vars)
+      (def old-v (old-vars k))
+      (os/setenv k (if (= old-v :unset) nil old-v)))
+    (when haderr
+      (error err))
+    result))
+
+(defmacro in-env
+  "Run forms with os environment variables set
+   to the keys and values of env-vars. The os environment
+   is restored before returning the result."
+  [env-vars & forms]
+  (tuple in-env* env-vars (tuple 'fn [] ;forms)))

@@ -60,21 +60,9 @@
 (array/remove process/args 0 (length process/args))
 (array/concat process/args new-args)
 
-(defn cwd-tilded
-  "Returns current directory with ~ in place of $HOME."
-  []
-  (let [cwd (os/cwd)
-        home (os/getenv "HOME")
-        dir (cond
-              (string/has-prefix? (string home "/") cwd)
-              (string/replace home "~" cwd)
-              (= home cwd) "~"
-              cwd)]
-    dir))
-
 (var *get-prompt*
      (fn *get-prompt* [p]
-       (string (cwd-tilded) " " (parser/state p) "$ ")))
+       (string (sh/shrink-path (os/cwd)) " " (parser/state p) "$ ")))
 
 (if *script*
   (sh/init true)
