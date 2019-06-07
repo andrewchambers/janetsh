@@ -52,6 +52,9 @@
 (when (sh/$?? false)
   (error "fail"))
 
+(when (not= (sh/$$? cat < (sh/$-pipe echo hello) ) ["hello\n" 0] )
+  (error "fail"))
+
 (def j1 (sh/$ sleep "0.1" &))
 (def j2 (sh/$ sleep "120" &))
 (sh/wait-for-job j1)

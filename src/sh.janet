@@ -288,6 +288,23 @@
   (each ev (pairs env)
     (os/setenv (ev 0) (ev 1))))
 
+(defn- close-redir-sources
+  [redirs]
+  
+  (defn is-std-fileno
+    [fd]
+    (find (partial = fd) [STDIN_FILENO STDOUT_FILENO STDERR_FILENO]))
+
+  (each redir redirs
+    (let [src (redir 2)]
+      (match (type src)
+      :number
+        (unless (is-std-fileno src)
+          (close src))
+      :core/file
+        (unless (is-std-fileno (file/fileno src))
+          (file/close src))))))
+
 (defn- do-redirs
   [redirs]
   (each r redirs
@@ -309,9 +326,31 @@
           (error "unhandled redirect")))
       :number
         (set srcfd src)
+      :core/file
+        (set srcfd (file/fileno src))
       (error "unsupported redirect target type"))
     
     (dup2 srcfd sinkfd)))
+
+(defn pipes
+  "Creates a pair of connected pipes as files and
+   return them as a tuple, the first file is read only,
+   the second file is write only. These files can be
+   used as redirection targets."
+  []
+  (let [[a b] (pipe)
+        fa (file/fdopen a :r)
+        fb (file/fdopen b :w)]
+    (if (and fa fb)
+      [fa fb]
+      (do
+        (if fa
+          (file/close fa)
+          (close a))
+        (if fb
+          (file/close fb)
+          (close b))
+        (error "unable to create pipes")))))
 
 (defn- exec-proc
   [proc]
@@ -439,6 +478,8 @@
                 (error "unreachable"))
             ([e] (do (file/write stderr (string e "\n")) (os/exit 1)))))
 
+          (close-redir-sources (proc :redirs))
+
           (post-fork pid)
 
           (when (not= infd STDIN_FILENO)
@@ -468,20 +509,13 @@
       (os/exit 1))))
 
 (defn- job-output-rc [j]
-  (let [[fd-a fd-b] (pipe)
-        output (buffer/new 1024)
-        readbuf (buffer/new-filled 1024)] 
-    (array/push ((last (j :procs)) :redirs) @[STDOUT_FILENO ">" fd-b])
+  (let [[fa fb] (pipes)]
+    (array/push ((last (j :procs)) :redirs) @[STDOUT_FILENO ">" fb])
     (launch-job j false)
-    (close fd-b)
-    (while true
-      (let [n (read fd-a readbuf)]
-        (if (= 0 n)
-          (break)
-          (buffer/push-string output (buffer/slice readbuf 0 n)))))
-    (close fd-a)
-    (wait-for-job j)
-    [(string output) (job-exit-code j)]))
+    (let [output (file/read fa :all)]
+      (file/close fa)
+      (wait-for-job j)
+      [(string output) (job-exit-code j)])))
 
 (defn- job-output [j]
   (let [[output rc] (job-output-rc j)]
@@ -782,7 +816,7 @@
           j)))))
 
 (defmacro $?
-  "Execute a shell job (pipeline) in the foreground or background with 
+  "Execute a shell job in the foreground or background with 
    a set of optional redirections for each process returning the job exit code.\n\n
 
    See the $ documenation for examples and more detailed information about the
@@ -791,7 +825,7 @@
   (fn-$? forms))
 
 (defmacro $??
-  "Execute a shell job (pipeline) in the foreground or background with 
+  "Execute a shell job in the foreground or background with 
    a set of optional redirections for each process returning true or false
    depending on whether the job was a success.\n\n
 
@@ -809,7 +843,7 @@
       ~(,job-output ,j)))
 
 (defmacro $$
-  "Execute a shell job (pipeline) in the foreground with 
+  "Execute a shell job in the foreground with 
    a set of optional redirections for each process returning the job stdout as a string.\n\n
 
    See the $ documenation for examples and more detailed information about the
@@ -818,7 +852,7 @@
   (fn-$$ forms))
 
 (defmacro $$_
-  "Execute a shell job (pipeline) in the foreground with 
+  "Execute a shell job in the foreground with 
    a set of optional redirections for each process returning
    the job stdout as a trimmed string.\n\n
 
@@ -836,7 +870,7 @@
       ~(,job-output-rc ,j)))
 
 (defmacro $$?
-  "Execute a shell job (pipeline) in the foreground with 
+  "Execute a shell job in the foreground with 
    a set of optional redirections for each process returning
    a tuple of stdout and the job exit code.\n\n
 
@@ -846,7 +880,7 @@
   (fn-$$? forms))
 
 (defmacro $$_?
-  "Execute a shell job (pipeline) in the foreground with 
+  "Execute a shell job in the foreground with 
    a set of optional redirections for each process returning
    a tuple of the trimmed stdout and the job exit code.\n\n
 
@@ -855,6 +889,21 @@
   [& forms]
   ~(let [[out rc] ,(fn-$$? forms)]
     [(,string/trimr out) rc]))
+
+(defmacro $-pipe
+  "Execute a shell job in the background returning
+   a file that can be used to read the job stdout.\n\n
+
+   See the $ documenation for examples and more detailed information about the
+   accepted syntax."
+  [& forms]
+  (let [[j fg] (parse-job ;forms)]
+  ~(do
+    (let [j ,j
+          [fa fb] (,pipes)]
+      (array/push ((last (j :procs)) :redirs) @[,STDOUT_FILENO ">" fb])
+      (,launch-job j false)
+      fa))))
 
 
 # Shell builtins
@@ -888,7 +937,6 @@
         [self proc]
         (try
           (let [args (tuple/slice (proc :args) 1)]
-            (pp args)
             (if (empty? args)
               (do
                 (do-setenv (proc :env))

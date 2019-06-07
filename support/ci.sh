@@ -2,7 +2,7 @@
 
 set -uex
 
-janetver="cc1ff9125ad504b3d9844624e0c31f56b2ba759b"
+janetver="95eb54045fe124b83298666d38404f5bff46f515"
 janeturl="https://github.com/janet-lang/janet/archive/${janetver}.tar.gz"
 mkdir -p ci_builds
 prefix="$(readlink -f ./ci_builds)/installed"
