@@ -137,17 +137,6 @@ static Janet open_(int32_t argc, Janet *argv) {
   return janet_wrap_integer(fd);
 }
 
-static Janet read_(int32_t argc, Janet *argv) {
-  janet_fixarity(argc, 2);
-  int fd = janet_getinteger(argv, 0);
-  JanetBuffer *buf = janet_getbuffer(argv, 1);
-  int n = read(fd, buf->data, buf->count);
-  if (fd == -1)
-    panic_errno("read", errno);
-
-  return janet_wrap_integer(n);
-}
-
 static Janet close_(int32_t argc, Janet *argv) {
   janet_fixarity(argc, 1);
   if (close((int)janet_getnumber(argv, 0)) == -1)
@@ -575,7 +564,6 @@ static const JanetReg cfuns[] = {
     {"dup2", dup2_, NULL},
     {"kill", kill_, NULL},
     {"open", open_, NULL},
-    {"read", read_, NULL},
     {"close", close_, NULL},
     {"pipe", pipe_, NULL},
     {"waitpid", waitpid_, NULL},
