@@ -24,6 +24,23 @@ but know that as you become more familiar with janet, your shell will gain the p
 
 Help develop janetsh [donate via paypal](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=Y3SWVCXV3PEA6&source=url)
 
+# Status
+
+Janetsh development has slowed and I am not actively working on it for now.
+Some of it is no longer compatible with the latest janet release.
+
+That being said, I consider janetsh a successful proof of concept and place to draw
+code and ideas from whenever the next attempt at fixing shells gets my attention.
+
+One potential avenue for janetsh2 in the future is to integrate janet syntax
+with the shell library:
+
+https://github.com/emersion/mrsh
+
+If we do this, we can have POSIX compatibility when we need it, as well as avoid implementing
+most of the complexity in a shell, and can instead focusing on delivering on the important
+ideas of janetsh.
+
 # See it in action
 
 [![asciicast](https://asciinema.org/a/248403.svg)](https://asciinema.org/a/248403)
